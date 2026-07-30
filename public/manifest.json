@@ -1,0 +1,16 @@
+{
+    "name": "BaeSpace",
+    "short_name": "BaeSpace",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#fff5f6",
+    "theme_color": "#e63946",
+    "icons": [
+        {
+            "src": "https://cdn-icons-png.flaticon.com/512/2589/2589175.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ]
+}
