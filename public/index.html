@@ -112,6 +112,15 @@
             font-weight: bold;
             color: #fff;
             font-size: 1.1rem;
+            overflow: hidden;
+            object-fit: cover;
+            flex-shrink: 0;
+        }
+
+        .avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
         .user-details h3 {
@@ -234,8 +243,44 @@
             background-size: 16px 16px;
         }
 
+        .msg-wrapper {
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+            max-width: 85%;
+        }
+
+        .msg-wrapper.sent {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .msg-wrapper.received {
+            align-self: flex-start;
+        }
+
+        .msg-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #00a884;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            overflow: hidden;
+            object-fit: cover;
+            flex-shrink: 0;
+            margin-bottom: 2px;
+        }
+
+        .msg-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
         .msg {
-            max-width: 75%;
             padding: 8px 12px 6px 12px;
             border-radius: 8px;
             font-size: 0.92rem;
@@ -247,15 +292,13 @@
             user-select: none;
         }
 
-        .msg.sent {
-            align-self: flex-end;
+        .sent .msg {
             background: #005c4b;
             color: #e9edef;
             border-top-right-radius: 0;
         }
 
-        .msg.received {
-            align-self: flex-start;
+        .received .msg {
             background: #202c33;
             color: #e9edef;
             border-top-left-radius: 0;
@@ -470,6 +513,62 @@
             color: #00a884;
         }
 
+        /* PROFILE AVATAR PICKER */
+        .avatar-edit-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .large-avatar {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            background: #00a884;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            color: #fff;
+            border: 3px solid #00a884;
+            overflow: hidden;
+            object-fit: cover;
+            cursor: pointer;
+        }
+
+        .large-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .avatar-presets {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 5px;
+        }
+
+        .preset-btn {
+            background: #202c33;
+            border: 1px solid #2a3942;
+            border-radius: 50%;
+            width: 38px;
+            height: 38px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .preset-btn:hover {
+            border-color: #00a884;
+        }
+
         /* BOTTOM NAVIGATION BAR */
         .bottom-nav {
             display: flex;
@@ -651,18 +750,37 @@
                     <div id="days-together-display" class="counter-display">Set Anniversary Date</div>
                 </div>
 
+                <div class="card" style="text-align: center; margin-bottom: 20px;">
+                    <div class="avatar-edit-container">
+                        <div class="large-avatar" id="profile-avatar-display"
+                            onclick="document.getElementById('avatar-file-input').click()">
+                            👤
+                        </div>
+                        <input type="file" id="avatar-file-input" style="display: none;" accept="image/*"
+                            onchange="uploadCustomAvatar(this)">
+                        <span style="font-size:0.75rem; color:#00a884; cursor:pointer;"
+                            onclick="document.getElementById('avatar-file-input').click()">📷 Upload Photo</span>
+
+                        <div class="avatar-presets">
+                            <button class="preset-btn" onclick="setEmojiAvatar('👑')">👑</button>
+                            <button class="preset-btn" onclick="setEmojiAvatar('🦁')">🦁</button>
+                            <button class="preset-btn" onclick="setEmojiAvatar('🌸')">🌸</button>
+                            <button class="preset-btn" onclick="setEmojiAvatar('🐱')">🐱</button>
+                            <button class="preset-btn" onclick="setEmojiAvatar('🧸')">🧸</button>
+                            <button class="preset-btn" onclick="setEmojiAvatar('🚀')">🚀</button>
+                        </div>
+                    </div>
+
+                    <h3 id="prof-username" style="color: #00a884;">User</h3>
+                    <p id="prof-paircode" style="color: #8696a0; margin-top: 4px;">Pair Code: ---</p>
+                </div>
+
                 <div class="add-form" style="margin-bottom: 15px;">
                     <label style="font-size:0.8rem; color:#8696a0;">Set Relationship Start Date:</label>
                     <input type="date" id="anniversary-input" class="form-input">
                     <button class="btn-primary" style="padding:10px;" onclick="saveAnniversary()">Save Date</button>
                 </div>
 
-                <div class="card" style="text-align: center; margin-bottom: 20px;">
-                    <div class="avatar" style="width: 60px; height: 60px; margin: 0 auto 10px auto; font-size: 1.5rem;">
-                        💕</div>
-                    <h3 id="prof-username" style="color: #00a884;">User</h3>
-                    <p id="prof-paircode" style="color: #8696a0; margin-top: 4px;">Pair Code: ---</p>
-                </div>
                 <button class="btn-primary" style="background: #e63946; color: white;"
                     onclick="logout()">Logout</button>
             </div>

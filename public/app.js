@@ -2,6 +2,7 @@ const socket = io();
 
 let currentUser = "";
 let currentRoom = "";
+let currentUserAvatar = "👤";
 let typingTimeout = null;
 let pickerInitialized = false;
 let isSignUpMode = false;
@@ -73,16 +74,18 @@ async function handleAuth() {
         localStorage.setItem('baespace_token', data.token);
         localStorage.setItem('baespace_user', data.username);
         localStorage.setItem('baespace_pair', data.pairCode);
+        if (data.avatar) localStorage.setItem('baespace_avatar', data.avatar);
 
-        enterApp(data.username, data.pairCode);
+        enterApp(data.username, data.pairCode, data.avatar);
     } catch (err) {
         alert('Could not connect to the server.');
     }
 }
 
-function enterApp(username, room) {
+function enterApp(username, room, avatar) {
     currentUser = username;
     currentRoom = room;
+    currentUserAvatar = avatar || localStorage.getItem('baespace_avatar') || '👤';
 
     socket.emit('join_room', { username: currentUser, room: currentRoom });
 
@@ -95,25 +98,83 @@ function enterApp(username, room) {
     document.getElementById('prof-username').innerText = currentUser;
     document.getElementById('prof-paircode').innerText = `Pair Code: ${currentRoom}`;
 
+    renderAvatarElements(currentUserAvatar);
     initEmojiPicker();
     loadAnniversary();
+    fetchUserAvatar();
 }
 
 function logout() {
     localStorage.removeItem('baespace_token');
     localStorage.removeItem('baespace_user');
     localStorage.removeItem('baespace_pair');
+    localStorage.removeItem('baespace_avatar');
     location.reload();
 }
 
 window.addEventListener('DOMContentLoaded', () => {
     const savedUser = localStorage.getItem('baespace_user');
     const savedPair = localStorage.getItem('baespace_pair');
+    const savedAvatar = localStorage.getItem('baespace_avatar');
 
     if (savedUser && savedPair) {
-        enterApp(savedUser, savedPair);
+        enterApp(savedUser, savedPair, savedAvatar);
     }
 });
+
+// ================= AVATAR PROFILE LOGIC =================
+
+async function fetchUserAvatar() {
+    try {
+        const res = await fetch(`/api/user/avatar/${currentUser}`);
+        const data = await res.json();
+        if (data.avatar) {
+            currentUserAvatar = data.avatar;
+            localStorage.setItem('baespace_avatar', currentUserAvatar);
+            renderAvatarElements(currentUserAvatar);
+        }
+    } catch (err) { }
+}
+
+function renderAvatarElements(avatar) {
+    const headerAvatar = document.getElementById('header-avatar');
+    const profileAvatar = document.getElementById('profile-avatar-display');
+
+    const avatarHTML = avatar.startsWith('data:image') || avatar.startsWith('http')
+        ? `<img src="${avatar}" alt="Avatar" />`
+        : avatar;
+
+    if (headerAvatar) headerAvatar.innerHTML = avatarHTML;
+    if (profileAvatar) profileAvatar.innerHTML = avatarHTML;
+}
+
+async function saveAvatar(avatarData) {
+    currentUserAvatar = avatarData;
+    localStorage.setItem('baespace_avatar', avatarData);
+    renderAvatarElements(avatarData);
+
+    await fetch('/api/user/avatar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: currentUser, avatar: avatarData })
+    });
+}
+
+function setEmojiAvatar(emoji) {
+    saveAvatar(emoji);
+}
+
+function uploadCustomAvatar(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        saveAvatar(e.target.result);
+    };
+    reader.readAsDataURL(file);
+    input.value = '';
+}
 
 // ================= EMOJI PICKER =================
 
@@ -168,6 +229,7 @@ function sendMessage() {
         id: 'msg-' + Date.now(),
         room: currentRoom,
         username: currentUser,
+        avatar: currentUserAvatar,
         message: message,
         type: 'text'
     });
@@ -186,7 +248,6 @@ function handleTyping() {
     }, 1500);
 }
 
-// 📸 Direct File Image Upload
 function uploadImage(input) {
     const file = input.files[0];
     if (!file) return;
@@ -197,6 +258,7 @@ function uploadImage(input) {
             id: 'msg-' + Date.now(),
             room: currentRoom,
             username: currentUser,
+            avatar: currentUserAvatar,
             message: e.target.result,
             type: 'image'
         });
@@ -205,7 +267,6 @@ function uploadImage(input) {
     input.value = '';
 }
 
-// 🎙️ Voice Notes Recording
 async function toggleVoiceRecord() {
     const micBtn = document.getElementById('mic-btn');
 
@@ -225,6 +286,7 @@ async function toggleVoiceRecord() {
                         id: 'msg-' + Date.now(),
                         room: currentRoom,
                         username: currentUser,
+                        avatar: currentUserAvatar,
                         message: reader.result,
                         type: 'audio'
                     });
@@ -244,7 +306,6 @@ async function toggleVoiceRecord() {
     }
 }
 
-// 🎭 Reactions Engine
 function openReactions(e, msgId) {
     e.preventDefault();
     e.stopPropagation();
@@ -311,15 +372,16 @@ function appendSystemMessage(msgText) {
 
 function appendChatMessage(data) {
     const chatBox = document.getElementById('chat-box');
-    const msgDiv = document.createElement('div');
+    const wrapper = document.createElement('div');
     const isSelf = data.username === currentUser;
     const msgId = data.id || ('msg-' + Date.now());
 
-    msgDiv.id = msgId;
-    msgDiv.className = `msg ${isSelf ? 'sent' : 'received'}`;
+    wrapper.className = `msg-wrapper ${isSelf ? 'sent' : 'received'}`;
 
-    // Attach reaction listeners (double tap or long press contextmenu)
-    msgDiv.addEventListener('contextmenu', (e) => openReactions(e, msgId));
+    const msgAvatar = data.avatar || '👤';
+    const avatarHTML = msgAvatar.startsWith('data:image') || msgAvatar.startsWith('http')
+        ? `<img src="${msgAvatar}" alt="Avatar" />`
+        : msgAvatar;
 
     let contentHTML = '';
     if (!isSelf) {
@@ -342,8 +404,15 @@ function appendChatMessage(data) {
         </div>
     `;
 
-    msgDiv.innerHTML = contentHTML;
-    chatBox.appendChild(msgDiv);
+    wrapper.innerHTML = `
+        <div class="msg-avatar">${avatarHTML}</div>
+        <div class="msg" id="${msgId}">${contentHTML}</div>
+    `;
+
+    const msgDiv = wrapper.querySelector('.msg');
+    msgDiv.addEventListener('contextmenu', (e) => openReactions(e, msgId));
+
+    chatBox.appendChild(wrapper);
     chatBox.scrollTop = chatBox.scrollHeight;
 }
 
