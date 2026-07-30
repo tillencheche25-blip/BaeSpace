@@ -17,12 +17,12 @@ app.use(express.static(path.join(__dirname, 'public')));
 // JWT Secret Key
 const JWT_SECRET = process.env.JWT_SECRET || 'baespace_super_secret_key_2026';
 
-// Connect to MongoDB Atlas (or local fallback)
+// MongoDB Atlas Connection URI
 const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://admin:Smalley254@cluster0.nuha0yj.mongodb.net/baespace?appName=Cluster0';
 
 mongoose.connect(MONGO_URI)
     .then(() => console.log('🍃 MongoDB Connected Successfully'))
-    .catch(err => console.error('MongoDB Connection Error:', err));
+    .catch(err => console.error('❌ MongoDB Connection Error:', err));
 
 // User Schema & Model
 const userSchema = new mongoose.Schema({
@@ -62,6 +62,7 @@ app.post('/api/auth/signup', async (req, res) => {
 
         res.json({ success: true, token, username: newUser.username, pairCode: newUser.pairCode });
     } catch (err) {
+        console.error("DETAILED SIGNUP ERROR:", err);
         res.status(500).json({ error: 'Server error during signup.' });
     }
 });
@@ -93,11 +94,12 @@ app.post('/api/auth/login', async (req, res) => {
 
         res.json({ success: true, token, username: user.username, pairCode: user.pairCode });
     } catch (err) {
+        console.error("DETAILED LOGIN ERROR:", err);
         res.status(500).json({ error: 'Server error during login.' });
     }
 });
 
-// SOCKET.IO REAL-TIME CHAT LOGIC
+// SOCKET.IO REAL-TIME CHAT
 io.on('connection', (socket) => {
     socket.on('join_room', (data) => {
         const room = String(data.room);
