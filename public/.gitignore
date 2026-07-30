@@ -1,1 +1,17 @@
+# Dependencies (Render will install fresh ones for Linux)
 node_modules/
+
+# Local Environment Variables
+.env
+
+# Local SQLite Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs & OS artifacts
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+Thumbs.db
