@@ -55,6 +55,7 @@
             align-items: center;
             justify-content: space-between;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            flex-shrink: 0;
         }
 
         .logout-btn {
@@ -137,12 +138,17 @@
             height: 100%;
             width: 100%;
             position: relative;
+            overflow: hidden;
+            /* Prevents room elements from spilling */
         }
 
         #chat-box {
             flex: 1;
             padding: 18px;
             overflow-y: auto;
+            /* Scrollbar stays locked inside the messages list */
+            min-height: 0;
+            /* Prevents messages box from expanding beyond container bounds */
             display: flex;
             flex-direction: column;
             gap: 10px;
@@ -238,6 +244,8 @@
             align-items: center;
             border-top: 1px solid #ffe3e8;
             position: relative;
+            flex-shrink: 0;
+            /* Prevents the type bar from shrinking or disappearing */
         }
 
         .inputs input[type="text"] {
