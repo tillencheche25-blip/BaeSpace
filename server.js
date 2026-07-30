@@ -78,13 +78,15 @@ app.post('/api/auth/signup', async (req, res) => {
         return res.status(400).json({ error: 'All fields are required.' });
     }
 
+    const cleanPairCode = String(pairCode).trim();
+
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
         const stmt = db.prepare(`INSERT INTO users (username, password, pairCode) VALUES (?, ?, ?)`);
-        const info = stmt.run(username, hashedPassword, pairCode);
+        const info = stmt.run(username, hashedPassword, cleanPairCode);
 
-        const token = jwt.sign({ id: info.lastInsertRowid, username, pairCode }, JWT_SECRET);
-        res.json({ token, username, pairCode, avatar: '👤' });
+        const token = jwt.sign({ id: info.lastInsertRowid, username, pairCode: cleanPairCode }, JWT_SECRET);
+        res.json({ token, username, pairCode: cleanPairCode, avatar: '👤' });
     } catch (err) {
         if (err.message && err.message.includes('UNIQUE constraint failed')) {
             return res.status(400).json({ error: 'Username already exists.' });
@@ -112,8 +114,9 @@ app.post('/api/auth/login', async (req, res) => {
             return res.status(400).json({ error: 'Invalid credentials.' });
         }
 
-        const token = jwt.sign({ id: user.id, username: user.username, pairCode: user.pairCode }, JWT_SECRET);
-        res.json({ token, username: user.username, pairCode: user.pairCode, avatar: user.avatar || '👤' });
+        const cleanPairCode = String(user.pairCode).trim();
+        const token = jwt.sign({ id: user.id, username: user.username, pairCode: cleanPairCode }, JWT_SECRET);
+        res.json({ token, username: user.username, pairCode: cleanPairCode, avatar: user.avatar || '👤' });
     } catch (err) {
         res.status(500).json({ error: 'Database error.' });
     }
@@ -144,7 +147,7 @@ app.post('/api/user/avatar', (req, res) => {
 
 // Get Memories
 app.get('/api/memories/:pairCode', (req, res) => {
-    const { pairCode } = req.params;
+    const pairCode = String(req.params.pairCode).trim();
     try {
         const rows = db.prepare(`SELECT * FROM memories WHERE pairCode = ? ORDER BY id DESC`).all(pairCode);
         res.json(rows || []);
@@ -156,10 +159,11 @@ app.get('/api/memories/:pairCode', (req, res) => {
 // Add Memory
 app.post('/api/memories', (req, res) => {
     const { pairCode, title, imageUrl, caption } = req.body;
+    const cleanPairCode = String(pairCode).trim();
     try {
         const stmt = db.prepare(`INSERT INTO memories (pairCode, title, imageUrl, caption) VALUES (?, ?, ?, ?)`);
-        const info = stmt.run(pairCode, title, imageUrl, caption);
-        res.json({ id: info.lastInsertRowid, pairCode, title, imageUrl, caption });
+        const info = stmt.run(cleanPairCode, title, imageUrl, caption);
+        res.json({ id: info.lastInsertRowid, pairCode: cleanPairCode, title, imageUrl, caption });
     } catch (err) {
         res.status(500).json({ error: 'Database error.' });
     }
@@ -167,7 +171,7 @@ app.post('/api/memories', (req, res) => {
 
 // Get Love Notes
 app.get('/api/notes/:pairCode', (req, res) => {
-    const { pairCode } = req.params;
+    const pairCode = String(req.params.pairCode).trim();
     try {
         const rows = db.prepare(`SELECT * FROM notes WHERE pairCode = ? ORDER BY id DESC`).all(pairCode);
         res.json(rows || []);
@@ -179,10 +183,11 @@ app.get('/api/notes/:pairCode', (req, res) => {
 // Add Love Note
 app.post('/api/notes', (req, res) => {
     const { pairCode, author, content } = req.body;
+    const cleanPairCode = String(pairCode).trim();
     try {
         const stmt = db.prepare(`INSERT INTO notes (pairCode, author, content) VALUES (?, ?, ?)`);
-        const info = stmt.run(pairCode, author, content);
-        res.json({ id: info.lastInsertRowid, pairCode, author, content });
+        const info = stmt.run(cleanPairCode, author, content);
+        res.json({ id: info.lastInsertRowid, pairCode: cleanPairCode, author, content });
     } catch (err) {
         res.status(500).json({ error: 'Database error.' });
     }
@@ -190,7 +195,7 @@ app.post('/api/notes', (req, res) => {
 
 // Get Important Dates
 app.get('/api/dates/:pairCode', (req, res) => {
-    const { pairCode } = req.params;
+    const pairCode = String(req.params.pairCode).trim();
     try {
         const rows = db.prepare(`SELECT * FROM dates WHERE pairCode = ? ORDER BY eventDate ASC`).all(pairCode);
         res.json(rows || []);
@@ -202,10 +207,11 @@ app.get('/api/dates/:pairCode', (req, res) => {
 // Add Important Date
 app.post('/api/dates', (req, res) => {
     const { pairCode, title, eventDate } = req.body;
+    const cleanPairCode = String(pairCode).trim();
     try {
         const stmt = db.prepare(`INSERT INTO dates (pairCode, title, eventDate) VALUES (?, ?, ?)`);
-        const info = stmt.run(pairCode, title, eventDate);
-        res.json({ id: info.lastInsertRowid, pairCode, title, eventDate });
+        const info = stmt.run(cleanPairCode, title, eventDate);
+        res.json({ id: info.lastInsertRowid, pairCode: cleanPairCode, title, eventDate });
     } catch (err) {
         res.status(500).json({ error: 'Database error.' });
     }
@@ -213,7 +219,7 @@ app.post('/api/dates', (req, res) => {
 
 // Get Relationship Anniversary Date
 app.get('/api/anniversary/:pairCode', (req, res) => {
-    const { pairCode } = req.params;
+    const pairCode = String(req.params.pairCode).trim();
     try {
         const row = db.prepare(`SELECT startDate FROM anniversaries WHERE pairCode = ?`).get(pairCode);
         res.json({ startDate: row ? row.startDate : null });
@@ -225,12 +231,13 @@ app.get('/api/anniversary/:pairCode', (req, res) => {
 // Save/Update Relationship Anniversary Date
 app.post('/api/anniversary', (req, res) => {
     const { pairCode, startDate } = req.body;
+    const cleanPairCode = String(pairCode).trim();
     try {
         const stmt = db.prepare(`
             INSERT INTO anniversaries (pairCode, startDate) VALUES (?, ?)
             ON CONFLICT(pairCode) DO UPDATE SET startDate = ?
         `);
-        stmt.run(pairCode, startDate, startDate);
+        stmt.run(cleanPairCode, startDate, startDate);
         res.json({ success: true, startDate });
     } catch (err) {
         res.status(500).json({ error: 'Database error.' });
@@ -257,48 +264,60 @@ app.post('/api/mood', (req, res) => {
 io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
 
+    // Join room and explicitly acknowledge back to client
     socket.on('join_room', (data) => {
-        socket.join(data.room);
-        socket.to(data.room).emit('user_joined', {
+        const roomStr = String(data.room).trim();
+        socket.join(roomStr);
+        console.log(`Socket ${socket.id} joined room: ${roomStr}`);
+
+        // Notify partner that user connected
+        socket.to(roomStr).emit('user_joined', {
             message: `${data.username} is now online 💕`
         });
     });
 
+    // Broadcast messages to EVERYONE in the room (including sender)
     socket.on('send_message', (data) => {
+        const roomStr = String(data.room).trim();
         const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        io.to(data.room).emit('receive_message', { ...data, time });
+
+        io.to(roomStr).emit('receive_message', {
+            ...data,
+            time
+        });
     });
 
     socket.on('send_reaction', (data) => {
-        io.to(data.room).emit('receive_reaction', data);
+        const roomStr = String(data.room).trim();
+        io.to(roomStr).emit('receive_reaction', data);
     });
 
     socket.on('typing', (data) => {
-        socket.to(data.room).emit('display_typing', data);
+        const roomStr = String(data.room).trim();
+        socket.to(roomStr).emit('display_typing', data);
     });
 
     socket.on('stop_typing', (data) => {
-        socket.to(data.room).emit('hide_typing');
+        const roomStr = String(data.room).trim();
+        socket.to(roomStr).emit('hide_typing');
     });
 
     socket.on('new_activity_badge', (data) => {
-        socket.to(data.room).emit('show_badge', data);
+        const roomStr = String(data.room).trim();
+        socket.to(roomStr).emit('show_badge', data);
     });
 
     socket.on('update_anniversary', (data) => {
-        io.to(data.room).emit('anniversary_updated', data);
+        const roomStr = String(data.room).trim();
+        io.to(roomStr).emit('anniversary_updated', data);
     });
 
     socket.on('profile_avatar_updated', (data) => {
-        socket.to(data.room).emit('partner_avatar_changed', data);
+        const roomStr = String(data.room).trim();
+        socket.to(roomStr).emit('partner_avatar_changed', data);
     });
 
     socket.on('disconnect', () => {
         console.log('User disconnected:', socket.id);
     });
-});
-
-// Start Server
-server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
 });

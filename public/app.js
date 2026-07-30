@@ -71,12 +71,14 @@ async function handleAuth() {
             return;
         }
 
+        const roomStr = String(data.pairCode).trim();
+
         localStorage.setItem('baespace_token', data.token);
         localStorage.setItem('baespace_user', data.username);
-        localStorage.setItem('baespace_pair', data.pairCode);
+        localStorage.setItem('baespace_pair', roomStr);
         if (data.avatar) localStorage.setItem('baespace_avatar', data.avatar);
 
-        enterApp(data.username, data.pairCode, data.avatar);
+        enterApp(data.username, roomStr, data.avatar);
     } catch (err) {
         alert('Could not connect to the server.');
     }
@@ -84,7 +86,7 @@ async function handleAuth() {
 
 function enterApp(username, room, avatar) {
     currentUser = username;
-    currentRoom = room;
+    currentRoom = String(room).trim();
     currentUserAvatar = avatar || localStorage.getItem('baespace_avatar') || '👤';
 
     socket.emit('join_room', { username: currentUser, room: currentRoom });
@@ -119,9 +121,36 @@ window.addEventListener('DOMContentLoaded', () => {
     const savedAvatar = localStorage.getItem('baespace_avatar');
 
     if (savedUser && savedPair) {
-        enterApp(savedUser, savedPair, savedAvatar);
+        enterApp(savedUser, String(savedPair).trim(), savedAvatar);
     }
 });
+
+// ================= NAVIGATION TAB SWITCHING =================
+
+function switchTab(tabName) {
+    const tabs = ['chat', 'memories', 'notes', 'dates', 'mood', 'profile'];
+    tabs.forEach(t => {
+        const section = document.getElementById(`section-${t}`);
+        const navBtn = document.getElementById(`nav-${t}`);
+        if (section) section.style.display = (t === tabName) ? 'block' : 'none';
+        if (navBtn) navBtn.classList.toggle('active', t === tabName);
+    });
+
+    if (tabName === 'profile') {
+        loadAnniversary();
+        fetchUserAvatar();
+    } else if (tabName === 'dates') {
+        fetchDates();
+    } else if (tabName === 'memories') {
+        fetchMemories();
+        const badge = document.getElementById('badge-memories');
+        if (badge) badge.style.display = 'none';
+    } else if (tabName === 'notes') {
+        fetchNotes();
+        const badge = document.getElementById('badge-notes');
+        if (badge) badge.style.display = 'none';
+    }
+}
 
 // ================= AVATAR PROFILE LOGIC =================
 
@@ -160,7 +189,7 @@ async function saveAvatar(avatarData) {
         body: JSON.stringify({ username: currentUser, avatar: avatarData })
     });
 
-    socket.emit('profile_avatar_updated', { room: currentRoom, username: currentUser, avatar: avatarData });
+    socket.emit('profile_avatar_updated', { room: String(currentRoom).trim(), username: currentUser, avatar: avatarData });
 }
 
 function setEmojiAvatar(emoji) {
@@ -185,6 +214,8 @@ function initEmojiPicker() {
     if (pickerInitialized) return;
 
     const container = document.getElementById('emoji-picker-container');
+    if (!container) return;
+
     const picker = new EmojiMart.Picker({
         onEmojiSelect: (emoji) => {
             const input = document.getElementById('msg-input');
@@ -202,7 +233,9 @@ function initEmojiPicker() {
 
 function toggleEmojiPicker() {
     const container = document.getElementById('emoji-picker-container');
-    container.style.display = (container.style.display === 'block') ? 'none' : 'block';
+    if (container) {
+        container.style.display = (container.style.display === 'block') ? 'none' : 'block';
+    }
 }
 
 document.addEventListener('click', (e) => {
@@ -228,9 +261,11 @@ function sendMessage() {
 
     if (!message || !currentRoom) return;
 
+    const roomStr = String(currentRoom).trim();
+
     socket.emit('send_message', {
         id: 'msg-' + Date.now(),
-        room: currentRoom,
+        room: roomStr,
         username: currentUser,
         avatar: currentUserAvatar,
         message: message,
@@ -238,16 +273,18 @@ function sendMessage() {
     });
 
     msgField.value = '';
-    document.getElementById('emoji-picker-container').style.display = 'none';
-    socket.emit('stop_typing', { room: currentRoom });
+    const container = document.getElementById('emoji-picker-container');
+    if (container) container.style.display = 'none';
+    socket.emit('stop_typing', { room: roomStr });
 }
 
 function handleTyping() {
-    socket.emit('typing', { room: currentRoom, username: currentUser });
+    const roomStr = String(currentRoom).trim();
+    socket.emit('typing', { room: roomStr, username: currentUser });
 
     clearTimeout(typingTimeout);
     typingTimeout = setTimeout(() => {
-        socket.emit('stop_typing', { room: currentRoom });
+        socket.emit('stop_typing', { room: roomStr });
     }, 1500);
 }
 
@@ -259,7 +296,7 @@ function uploadImage(input) {
     reader.onload = function (e) {
         socket.emit('send_message', {
             id: 'msg-' + Date.now(),
-            room: currentRoom,
+            room: String(currentRoom).trim(),
             username: currentUser,
             avatar: currentUserAvatar,
             message: e.target.result,
@@ -287,7 +324,7 @@ async function toggleVoiceRecord() {
                 reader.onloadend = () => {
                     socket.emit('send_message', {
                         id: 'msg-' + Date.now(),
-                        room: currentRoom,
+                        room: String(currentRoom).trim(),
                         username: currentUser,
                         avatar: currentUserAvatar,
                         message: reader.result,
@@ -315,20 +352,23 @@ function openReactions(e, msgId) {
     activeMessageForReaction = msgId;
 
     const bar = document.getElementById('reaction-bar');
-    bar.style.display = 'flex';
-    bar.style.top = `${e.clientY - 40}px`;
-    bar.style.left = `${Math.min(e.clientX, window.innerWidth - 200)}px`;
+    if (bar) {
+        bar.style.display = 'flex';
+        bar.style.top = `${e.clientY - 40}px`;
+        bar.style.left = `${Math.min(e.clientX, window.innerWidth - 200)}px`;
+    }
 }
 
 function sendReaction(emoji) {
     if (!activeMessageForReaction) return;
     socket.emit('send_reaction', {
-        room: currentRoom,
+        room: String(currentRoom).trim(),
         messageId: activeMessageForReaction,
         emoji: emoji,
         username: currentUser
     });
-    document.getElementById('reaction-bar').style.display = 'none';
+    const bar = document.getElementById('reaction-bar');
+    if (bar) bar.style.display = 'none';
 }
 
 socket.on('receive_reaction', (data) => {
@@ -351,21 +391,30 @@ socket.on('receive_message', (data) => appendChatMessage(data));
 
 socket.on('display_typing', (data) => {
     if (data.username !== currentUser) {
-        document.getElementById('typing-status').innerText = `${data.username} is typing...`;
+        const el = document.getElementById('typing-status');
+        if (el) el.innerText = `${data.username} is typing...`;
     }
 });
 
 socket.on('hide_typing', () => {
-    document.getElementById('typing-status').innerText = '';
+    const el = document.getElementById('typing-status');
+    if (el) el.innerText = '';
 });
 
 socket.on('show_badge', (data) => {
-    if (data.category === 'notes') document.getElementById('badge-notes').style.display = 'block';
-    if (data.category === 'memories') document.getElementById('badge-memories').style.display = 'block';
+    if (data.category === 'notes') {
+        const b = document.getElementById('badge-notes');
+        if (b) b.style.display = 'block';
+    }
+    if (data.category === 'memories') {
+        const b = document.getElementById('badge-memories');
+        if (b) b.style.display = 'block';
+    }
 });
 
 function appendSystemMessage(msgText) {
     const chatBox = document.getElementById('chat-box');
+    if (!chatBox) return;
     const sysDiv = document.createElement('div');
     sysDiv.className = 'sys-msg';
     sysDiv.innerText = msgText;
@@ -375,6 +424,7 @@ function appendSystemMessage(msgText) {
 
 function appendChatMessage(data) {
     const chatBox = document.getElementById('chat-box');
+    if (!chatBox) return;
     const wrapper = document.createElement('div');
     const isSelf = data.username === currentUser;
     const msgId = data.id || ('msg-' + Date.now());
@@ -422,16 +472,18 @@ function appendChatMessage(data) {
 // ================= MEMORIES FEATURE =================
 
 async function fetchMemories() {
-    const res = await fetch(`/api/memories/${currentRoom}`);
+    const res = await fetch(`/api/memories/${String(currentRoom).trim()}`);
     const memories = await res.json();
     const list = document.getElementById('memories-list');
-    list.innerHTML = memories.map(m => `
-        <div class="card">
-            <h4>${escapeHTML(m.title)}</h4>
-            ${m.imageUrl ? `<img src="${m.imageUrl}" alt="Memory" />` : ''}
-            <p style="margin-top: 6px;">${escapeHTML(m.caption || '')}</p>
-        </div>
-    `).join('');
+    if (list) {
+        list.innerHTML = memories.map(m => `
+            <div class="card">
+                <h4>${escapeHTML(m.title)}</h4>
+                ${m.imageUrl ? `<img src="${m.imageUrl}" alt="Memory" />` : ''}
+                <p style="margin-top: 6px;">${escapeHTML(m.caption || '')}</p>
+            </div>
+        `).join('');
+    }
 }
 
 async function saveMemory() {
@@ -445,14 +497,15 @@ async function saveMemory() {
     reader.readAsDataURL(fileInput.files[0]);
     reader.onload = async function () {
         const imageUrl = reader.result;
+        const roomStr = String(currentRoom).trim();
 
         await fetch('/api/memories', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pairCode: currentRoom, title, imageUrl, caption })
+            body: JSON.stringify({ pairCode: roomStr, title, imageUrl, caption })
         });
 
-        socket.emit('new_activity_badge', { room: currentRoom, category: 'memories' });
+        socket.emit('new_activity_badge', { room: roomStr, category: 'memories' });
 
         document.getElementById('mem-title').value = '';
         fileInput.value = '';
@@ -464,28 +517,32 @@ async function saveMemory() {
 // ================= LOVE NOTES FEATURE =================
 
 async function fetchNotes() {
-    const res = await fetch(`/api/notes/${currentRoom}`);
+    const res = await fetch(`/api/notes/${String(currentRoom).trim()}`);
     const notes = await res.json();
     const list = document.getElementById('notes-list');
-    list.innerHTML = notes.map(n => `
-        <div class="card">
-            <h4>From: ${escapeHTML(n.author)}</h4>
-            <p>${escapeHTML(n.content)}</p>
-        </div>
-    `).join('');
+    if (list) {
+        list.innerHTML = notes.map(n => `
+            <div class="card">
+                <h4>From: ${escapeHTML(n.author)}</h4>
+                <p>${escapeHTML(n.content)}</p>
+            </div>
+        `).join('');
+    }
 }
 
 async function saveNote() {
     const content = document.getElementById('note-content').value.trim();
     if (!content) return alert('Please write a note.');
 
+    const roomStr = String(currentRoom).trim();
+
     await fetch('/api/notes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pairCode: currentRoom, author: currentUser, content })
+        body: JSON.stringify({ pairCode: roomStr, author: currentUser, content })
     });
 
-    socket.emit('new_activity_badge', { room: currentRoom, category: 'notes' });
+    socket.emit('new_activity_badge', { room: roomStr, category: 'notes' });
 
     document.getElementById('note-content').value = '';
     fetchNotes();
@@ -496,7 +553,7 @@ async function saveNote() {
 async function fetchDates() {
     if (!currentRoom) return;
     try {
-        const res = await fetch(`/api/dates/${currentRoom}`);
+        const res = await fetch(`/api/dates/${String(currentRoom).trim()}`);
         const dates = await res.json();
         const list = document.getElementById('dates-list');
         if (list) {
@@ -516,10 +573,12 @@ async function saveDate() {
 
     if (!title || !eventDate) return alert('Please select a title and date.');
 
+    const roomStr = String(currentRoom).trim();
+
     await fetch('/api/dates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pairCode: currentRoom, title, eventDate })
+        body: JSON.stringify({ pairCode: roomStr, title, eventDate })
     });
 
     document.getElementById('date-title').value = '';
@@ -536,7 +595,8 @@ async function updateMood(moodText) {
         body: JSON.stringify({ username: currentUser, mood: moodText })
     });
 
-    document.getElementById('current-mood-tag').innerText = moodText.split(' ')[0];
+    const tag = document.getElementById('current-mood-tag');
+    if (tag) tag.innerText = moodText.split(' ')[0];
     alert(`Mood updated to: ${moodText}`);
 }
 
@@ -545,34 +605,40 @@ async function updateMood(moodText) {
 async function loadAnniversary() {
     if (!currentRoom) return;
     try {
-        const res = await fetch(`/api/anniversary/${currentRoom}`);
+        const roomStr = String(currentRoom).trim();
+        const res = await fetch(`/api/anniversary/${roomStr}`);
         const data = await res.json();
-        if (data.startDate) {
+        if (data && data.startDate) {
             relationshipStartDate = new Date(data.startDate);
-            document.getElementById('anniversary-input').value = data.startDate;
+            const inputEl = document.getElementById('anniversary-input');
+            if (inputEl) inputEl.value = data.startDate;
             startCounterTicker();
         }
     } catch (err) { }
 }
 
 async function saveAnniversary() {
-    const dateVal = document.getElementById('anniversary-input').value;
+    const inputEl = document.getElementById('anniversary-input');
+    const dateVal = inputEl ? inputEl.value : null;
     if (!dateVal) return alert('Please choose a date.');
+
+    const roomStr = String(currentRoom).trim();
 
     await fetch('/api/anniversary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pairCode: currentRoom, startDate: dateVal })
+        body: JSON.stringify({ pairCode: roomStr, startDate: dateVal })
     });
 
     relationshipStartDate = new Date(dateVal);
-    socket.emit('update_anniversary', { room: currentRoom, startDate: dateVal });
+    socket.emit('update_anniversary', { room: roomStr, startDate: dateVal });
     startCounterTicker();
 }
 
 socket.on('anniversary_updated', (data) => {
     relationshipStartDate = new Date(data.startDate);
-    document.getElementById('anniversary-input').value = data.startDate;
+    const inputEl = document.getElementById('anniversary-input');
+    if (inputEl) inputEl.value = data.startDate;
     startCounterTicker();
 });
 
@@ -580,6 +646,7 @@ function startCounterTicker() {
     if (counterInterval) clearInterval(counterInterval);
 
     const display = document.getElementById('days-together-display');
+    if (!display) return;
 
     function updateDisplay() {
         if (!relationshipStartDate) return;
