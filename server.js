@@ -1,0 +1,79 @@
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+const path = require('path');
+
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+    cors: { origin: "*" }
+});
+
+// Serve static frontend files from the 'public' folder
+app.use(express.static(path.join(__dirname, 'public')));
+
+io.on('connection', (socket) => {
+    console.log(`⚡ User Connected: ${socket.id}`);
+
+    // 1. JOIN ROOM
+    socket.on('join_room', (data) => {
+        // Extract room correctly whether data is passed as an object or string
+        const room = String(typeof data === 'object' ? data.room : data);
+        const username = (typeof data === 'object' && data.username) ? data.username : 'Anonymous';
+
+        socket.data.username = username;
+        socket.data.room = room;
+
+        socket.join(room);
+        console.log(`👤 Socket ${socket.id} (${username}) joined room: ${room}`);
+
+        // Broadcast join notification to everyone in the room
+        io.to(room).emit('user_joined', {
+            username: username,
+            message: `${username} has joined the chat.`
+        });
+    });
+
+    // 2. SEND MESSAGE
+    socket.on('send_message', (data) => {
+        const room = String(data.room);
+        const username = data.username || socket.data.username || 'Anonymous';
+        const message = data.message;
+        const type = data.type || 'text';
+
+        console.log(`💬 [Room ${room}] ${username}: ${message}`);
+
+        // Broadcast message to everyone in the room
+        io.to(room).emit('receive_message', {
+            username: username,
+            message: message,
+            type: type,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        });
+    });
+
+    // 3. TYPING STATUS
+    socket.on('typing', (data) => {
+        socket.to(String(data.room)).emit('display_typing', { username: data.username });
+    });
+
+    socket.on('stop_typing', (data) => {
+        socket.to(String(data.room)).emit('hide_typing');
+    });
+
+    // 4. DISCONNECT
+    socket.on('disconnect', () => {
+        if (socket.data.room && socket.data.username) {
+            io.to(socket.data.room).emit('user_left', {
+                username: socket.data.username,
+                message: `${socket.data.username} left the chat.`
+            });
+        }
+        console.log(`❌ User Disconnected: ${socket.id}`);
+    });
+});
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
+});
