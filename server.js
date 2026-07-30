@@ -1,67 +1,129 @@
+require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-    cors: { origin: "*" }
-});
+const io = new Server(server, { cors: { origin: "*" } });
 
+app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Store message history per room in memory
-const roomMessages = {};
+// JWT Secret Key
+const JWT_SECRET = process.env.JWT_SECRET || 'baespace_super_secret_key_2026';
 
+// Connect to MongoDB Atlas (or local fallback)
+const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://admin:Smalley254@cluster0.nuha0yj.mongodb.net/baespace?appName=Cluster0';
+
+mongoose.connect(MONGO_URI)
+    .then(() => console.log('🍃 MongoDB Connected Successfully'))
+    .catch(err => console.error('MongoDB Connection Error:', err));
+
+// User Schema & Model
+const userSchema = new mongoose.Schema({
+    username: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+    pairCode: { type: String, required: true },
+    avatarUrl: { type: String, default: 'https://cdn-icons-png.flaticon.com/512/847/847969.png' }
+});
+
+const User = mongoose.model('User', userSchema);
+
+// AUTHENTICATION ROUTES
+
+// SIGNUP ROUTE
+app.post('/api/auth/signup', async (req, res) => {
+    try {
+        const { username, password, pairCode } = req.body;
+
+        if (!username || !password || !pairCode) {
+            return res.status(400).json({ error: 'Please fill in all fields.' });
+        }
+
+        const existingUser = await User.findOne({ username });
+        if (existingUser) {
+            return res.status(400).json({ error: 'Username already taken.' });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const newUser = new User({ username, password: hashedPassword, pairCode });
+        await newUser.save();
+
+        const token = jwt.sign(
+            { userId: newUser._id, username: newUser.username, pairCode: newUser.pairCode },
+            JWT_SECRET,
+            { expiresIn: '30d' }
+        );
+
+        res.json({ success: true, token, username: newUser.username, pairCode: newUser.pairCode });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error during signup.' });
+    }
+});
+
+// LOGIN ROUTE
+app.post('/api/auth/login', async (req, res) => {
+    try {
+        const { username, password } = req.body;
+
+        if (!username || !password) {
+            return res.status(400).json({ error: 'Please provide both username and password.' });
+        }
+
+        const user = await User.findOne({ username });
+        if (!user) {
+            return res.status(400).json({ error: 'Invalid username or password.' });
+        }
+
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(400).json({ error: 'Invalid username or password.' });
+        }
+
+        const token = jwt.sign(
+            { userId: user._id, username: user.username, pairCode: user.pairCode },
+            JWT_SECRET,
+            { expiresIn: '30d' }
+        );
+
+        res.json({ success: true, token, username: user.username, pairCode: user.pairCode });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error during login.' });
+    }
+});
+
+// SOCKET.IO REAL-TIME CHAT LOGIC
 io.on('connection', (socket) => {
-    console.log(`⚡ Connected: ${socket.id}`);
-
-    // JOIN ROOM
     socket.on('join_room', (data) => {
-        const room = String(typeof data === 'object' ? data.room : data);
-        const username = (typeof data === 'object' && data.username) ? data.username : 'Anonymous';
+        const room = String(data.room);
+        const username = data.username || 'Anonymous';
 
         socket.data.username = username;
         socket.data.room = room;
-
         socket.join(room);
 
-        // Send previous chat history to the newly connected user
-        if (roomMessages[room]) {
-            socket.emit('load_history', roomMessages[room]);
-        }
-
-        // Broadcast join notice
         io.to(room).emit('user_joined', {
             username: username,
-            message: `${username} joined BaeSpace 💕`
+            message: `${username} connected 💕`
         });
     });
 
-    // SEND MESSAGE
     socket.on('send_message', (data) => {
         const room = String(data.room);
-        const username = data.username || socket.data.username || 'Anonymous';
-
         const messageObj = {
-            id: Date.now() + Math.random().toString(36).substr(2, 5),
-            username: username,
+            username: data.username,
             message: data.message,
             type: data.type || 'text',
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
-
-        // Save to room history (keep last 100 messages)
-        if (!roomMessages[room]) roomMessages[room] = [];
-        roomMessages[room].push(messageObj);
-        if (roomMessages[room].length > 100) roomMessages[room].shift();
-
-        // Broadcast message to room
         io.to(room).emit('receive_message', messageObj);
     });
 
-    // TYPING STATUS
     socket.on('typing', (data) => {
         socket.to(String(data.room)).emit('display_typing', { username: data.username });
     });
@@ -70,18 +132,12 @@ io.on('connection', (socket) => {
         socket.to(String(data.room)).emit('hide_typing');
     });
 
-    // DISCONNECT
     socket.on('disconnect', () => {
         if (socket.data.room && socket.data.username) {
-            io.to(socket.data.room).emit('user_left', {
-                username: socket.data.username,
-                message: `${socket.data.username} left.`
-            });
+            io.to(socket.data.room).emit('user_left', { message: `${socket.data.username} disconnected.` });
         }
     });
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`🚀 BaeSpace running on http://localhost:${PORT}`);
-});
+server.listen(PORT, () => console.log(`🚀 BaeSpace running on http://localhost:${PORT}`));

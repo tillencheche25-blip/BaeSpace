@@ -5,6 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BaeSpace | Private Chat</title>
+
+    <!-- PWA Manifest & Service Worker Script -->
     <link rel="manifest" href="/manifest.json">
     <script>
         if ('serviceWorker' in navigator) {
@@ -57,40 +59,51 @@
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
-        #room-selection {
-            padding: 40px 25px;
+        .logout-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+
+        #auth-container {
+            padding: 35px 25px;
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 12px;
             text-align: center;
         }
 
-        #room-selection h2 {
+        #auth-container h2 {
             color: #e63946;
-            margin-bottom: 5px;
+            margin-bottom: 2px;
         }
 
-        #room-selection p {
+        #auth-container p.subtitle {
             color: #666;
             font-size: 0.9rem;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
         }
 
-        #room-selection input {
+        #auth-container input {
             width: 100%;
-            padding: 14px;
+            padding: 12px 14px;
+            margin-bottom: 10px;
             border: 2px solid #ffccd5;
             border-radius: 10px;
             outline: none;
-            font-size: 1rem;
+            font-size: 0.95rem;
             transition: border-color 0.2s;
         }
 
-        #room-selection input:focus {
+        #auth-container input:focus {
             border-color: #e63946;
         }
 
-        #room-selection button {
+        #auth-btn {
             width: 100%;
             padding: 14px;
             background: #e63946;
@@ -100,11 +113,24 @@
             font-size: 1rem;
             font-weight: bold;
             cursor: pointer;
-            transition: transform 0.1s, background 0.2s;
+            margin-top: 5px;
+            transition: background 0.2s;
         }
 
-        #room-selection button:hover {
+        #auth-btn:hover {
             background: #d62828;
+        }
+
+        .toggle-text {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+
+        .toggle-text span {
+            color: #e63946;
+            font-weight: bold;
         }
 
         #chat-interface {
@@ -262,7 +288,6 @@
             background: #d62828;
         }
 
-        /* Emoji Picker Popover Styling */
         #emoji-picker-container {
             display: none;
             position: absolute;
@@ -281,19 +306,26 @@
     <div class="container">
         <div class="chat-header">
             <span id="header-title">💕 BaeSpace</span>
-            <span id="typing-status"></span>
+            <div>
+                <span id="typing-status"></span>
+                <button id="logout-btn" class="logout-btn" onclick="logout()" style="display: none;">Logout</button>
+            </div>
         </div>
 
-        <div id="room-selection">
-            <h2>Welcome to BaeSpace</h2>
-            <p>Your private space for two 💕</p>
-            <input type="text" id="username-input" placeholder="Your Name / Nickname">
-            <input type="text" id="room-input" placeholder="Couple Room ID (e.g. 777)">
-            <button onclick="joinRoom()">Enter BaeSpace</button>
+        <div id="auth-container">
+            <h2 id="auth-title">Welcome to BaeSpace 💕</h2>
+            <p id="auth-subtitle" class="subtitle">Login to your private space</p>
+
+            <input type="text" id="auth-username" placeholder="Username">
+            <input type="password" id="auth-password" placeholder="Password">
+            <input type="text" id="auth-paircode" placeholder="Couple Pair Code (e.g. 777)" style="display: none;">
+
+            <button id="auth-btn" onclick="handleAuth()">Login</button>
+            <p class="toggle-text" onclick="toggleAuthMode()">Don't have an account? <span id="toggle-link">Sign
+                    Up</span></p>
         </div>
 
         <div id="chat-interface" style="display: none;">
-            <!-- Emoji Picker Dropdown Container -->
             <div id="emoji-picker-container"></div>
 
             <div id="chat-box"></div>
