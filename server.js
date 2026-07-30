@@ -1,178 +1,274 @@
-require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
-const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" } });
+const io = new Server(server);
 
-app.use(express.json());
+const PORT = process.env.PORT || 3000;
+const JWT_SECRET = process.env.JWT_SECRET || 'baespace_secret_key_123';
+
+// Middleware
+app.use(express.json({ limit: '25mb' }));
+app.use(express.urlencoded({ limit: '25mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-const JWT_SECRET = process.env.JWT_SECRET || 'baespace_super_secret_key_2026';
-const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://admin:Smalley254@cluster0.nuha0yj.mongodb.net/baespace?appName=Cluster0';
-
-mongoose.connect(MONGO_URI)
-    .then(() => console.log('🍃 MongoDB Connected Successfully'))
-    .catch(err => console.error('❌ MongoDB Connection Error:', err));
-
-// ================= SCHEMAS =================
-
-// User Schema
-const userSchema = new mongoose.Schema({
-    username: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
-    pairCode: { type: String, required: true },
-    avatarUrl: { type: String, default: 'https://cdn-icons-png.flaticon.com/512/847/847969.png' },
-    mood: { type: String, default: '🥰 Happy' }
-});
-
-// Love Notes Schema
-const noteSchema = new mongoose.Schema({
-    pairCode: { type: String, required: true },
-    author: { type: String, required: true },
-    content: { type: String, required: true },
-    createdAt: { type: Date, default: Date.now }
-});
-
-// Important Dates Schema
-const dateSchema = new mongoose.Schema({
-    pairCode: { type: String, required: true },
-    title: { type: String, required: true },
-    eventDate: { type: Date, required: true }
-});
-
-// Shared Memories Schema
-const memorySchema = new mongoose.Schema({
-    pairCode: { type: String, required: true },
-    title: { type: String, required: true },
-    imageUrl: { type: String, required: true },
-    caption: { type: String },
-    createdAt: { type: Date, default: Date.now }
-});
-
-const User = mongoose.model('User', userSchema);
-const Note = mongoose.model('Note', noteSchema);
-const EventDate = mongoose.model('EventDate', dateSchema);
-const Memory = mongoose.model('Memory', memorySchema);
-
-// ================= API ROUTES =================
-
-// AUTHENTICATION
-app.post('/api/auth/signup', async (req, res) => {
-    try {
-        const { username, password, pairCode } = req.body;
-        if (!username || !password || !pairCode) return res.status(400).json({ error: 'Please fill in all fields.' });
-
-        const existingUser = await User.findOne({ username });
-        if (existingUser) return res.status(400).json({ error: 'Username already taken.' });
-
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const newUser = new User({ username, password: hashedPassword, pairCode });
-        await newUser.save();
-
-        const token = jwt.sign({ userId: newUser._id, username: newUser.username, pairCode: newUser.pairCode }, JWT_SECRET, { expiresIn: '30d' });
-        res.json({ success: true, token, username: newUser.username, pairCode: newUser.pairCode });
-    } catch (err) {
-        res.status(500).json({ error: 'Server error during signup.' });
+// Database Initialization
+const db = new sqlite3.Database('./baespace.db', (err) => {
+    if (err) {
+        console.error('Database connection error:', err.message);
+    } else {
+        console.log('Connected to SQLite database.');
     }
 });
 
-app.post('/api/auth/login', async (req, res) => {
-    try {
-        const { username, password } = req.body;
-        if (!username || !password) return res.status(400).json({ error: 'Provide both fields.' });
+// Create Database Tables
+db.serialize(() => {
+    // Users table
+    db.run(`
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE,
+            password TEXT,
+            pairCode TEXT
+        )
+    `);
 
-        const user = await User.findOne({ username });
-        if (!user || !(await bcrypt.compare(password, user.password))) {
-            return res.status(400).json({ error: 'Invalid username or password.' });
+    // Memories table
+    db.run(`
+        CREATE TABLE IF NOT EXISTS memories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            pairCode TEXT,
+            title TEXT,
+            imageUrl TEXT,
+            caption TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    // Love Notes table
+    db.run(`
+        CREATE TABLE IF NOT EXISTS notes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            pairCode TEXT,
+            author TEXT,
+            content TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    // Important Dates table
+    db.run(`
+        CREATE TABLE IF NOT EXISTS dates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            pairCode TEXT,
+            title TEXT,
+            eventDate TEXT
+        )
+    `);
+
+    // Moods table
+    db.run(`
+        CREATE TABLE IF NOT EXISTS moods (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE,
+            mood TEXT,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+});
+
+// ================= API ENDPOINTS =================
+
+// Signup
+app.post('/api/auth/signup', async (req, res) => {
+    const { username, password, pairCode } = req.body;
+
+    if (!username || !password || !pairCode) {
+        return res.status(400).json({ error: 'All fields are required.' });
+    }
+
+    try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const query = `INSERT INTO users (username, password, pairCode) VALUES (?, ?, ?)`;
+
+        db.run(query, [username, hashedPassword, pairCode], function (err) {
+            if (err) {
+                if (err.message.includes('UNIQUE constraint failed')) {
+                    return res.status(400).json({ error: 'Username already exists.' });
+                }
+                return res.status(500).json({ error: 'Database error.' });
+            }
+
+            const token = jwt.sign({ id: this.lastID, username, pairCode }, JWT_SECRET);
+            res.json({ token, username, pairCode });
+        });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error.' });
+    }
+});
+
+// Login
+app.post('/api/auth/login', (req, res) => {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+        return res.status(400).json({ error: 'Username and password required.' });
+    }
+
+    const query = `SELECT * FROM users WHERE username = ?`;
+    db.get(query, [username], async (err, user) => {
+        if (err || !user) {
+            return res.status(400).json({ error: 'Invalid credentials.' });
         }
 
-        const token = jwt.sign({ userId: user._id, username: user.username, pairCode: user.pairCode }, JWT_SECRET, { expiresIn: '30d' });
-        res.json({ success: true, token, username: user.username, pairCode: user.pairCode, mood: user.mood });
-    } catch (err) {
-        res.status(500).json({ error: 'Server error during login.' });
-    }
+        const match = await bcrypt.compare(password, user.password);
+        if (!match) {
+            return res.status(400).json({ error: 'Invalid credentials.' });
+        }
+
+        const token = jwt.sign({ id: user.id, username: user.username, pairCode: user.pairCode }, JWT_SECRET);
+        res.json({ token, username: user.username, pairCode: user.pairCode });
+    });
 });
 
-// LOVE NOTES
-app.get('/api/notes/:pairCode', async (req, res) => {
-    const notes = await Note.find({ pairCode: req.params.pairCode }).sort({ createdAt: -1 });
-    res.json(notes);
+// Get Memories
+app.get('/api/memories/:pairCode', (req, res) => {
+    const { pairCode } = req.params;
+    db.all(`SELECT * FROM memories WHERE pairCode = ? ORDER BY id DESC`, [pairCode], (err, rows) => {
+        if (err) return res.status(500).json({ error: 'Database error.' });
+        res.json(rows);
+    });
 });
 
-app.post('/api/notes', async (req, res) => {
-    const { pairCode, author, content } = req.body;
-    const newNote = new Note({ pairCode, author, content });
-    await newNote.save();
-    res.json(newNote);
-});
-
-// IMPORTANT DATES
-app.get('/api/dates/:pairCode', async (req, res) => {
-    const dates = await EventDate.find({ pairCode: req.params.pairCode }).sort({ eventDate: 1 });
-    res.json(dates);
-});
-
-app.post('/api/dates', async (req, res) => {
-    const { pairCode, title, eventDate } = req.body;
-    const newDate = new EventDate({ pairCode, title, eventDate });
-    await newDate.save();
-    res.json(newDate);
-});
-
-// SHARED MEMORIES
-app.get('/api/memories/:pairCode', async (req, res) => {
-    const memories = await Memory.find({ pairCode: req.params.pairCode }).sort({ createdAt: -1 });
-    res.json(memories);
-});
-
-app.post('/api/memories', async (req, res) => {
+// Add Memory
+app.post('/api/memories', (req, res) => {
     const { pairCode, title, imageUrl, caption } = req.body;
-    const newMemory = new Memory({ pairCode, title, imageUrl, caption });
-    await newMemory.save();
-    res.json(newMemory);
+    db.run(
+        `INSERT INTO memories (pairCode, title, imageUrl, caption) VALUES (?, ?, ?, ?)`,
+        [pairCode, title, imageUrl, caption],
+        function (err) {
+            if (err) return res.status(500).json({ error: 'Database error.' });
+            res.json({ id: this.lastID, pairCode, title, imageUrl, caption });
+        }
+    );
 });
 
-// MOOD UPDATE
-app.post('/api/mood', async (req, res) => {
+// Get Love Notes
+app.get('/api/notes/:pairCode', (req, res) => {
+    const { pairCode } = req.params;
+    db.all(`SELECT * FROM notes WHERE pairCode = ? ORDER BY id DESC`, [pairCode], (err, rows) => {
+        if (err) return res.status(500).json({ error: 'Database error.' });
+        res.json(rows);
+    });
+});
+
+// Add Love Note
+app.post('/api/notes', (req, res) => {
+    const { pairCode, author, content } = req.body;
+    db.run(
+        `INSERT INTO notes (pairCode, author, content) VALUES (?, ?, ?)`,
+        [pairCode, author, content],
+        function (err) {
+            if (err) return res.status(500).json({ error: 'Database error.' });
+            res.json({ id: this.lastID, pairCode, author, content });
+        }
+    );
+});
+
+// Get Important Dates
+app.get('/api/dates/:pairCode', (req, res) => {
+    const { pairCode } = req.params;
+    db.all(`SELECT * FROM dates WHERE pairCode = ? ORDER BY eventDate ASC`, [pairCode], (err, rows) => {
+        if (err) return res.status(500).json({ error: 'Database error.' });
+        res.json(rows);
+    });
+});
+
+// Add Important Date
+app.post('/api/dates', (req, res) => {
+    const { pairCode, title, eventDate } = req.body;
+    db.run(
+        `INSERT INTO dates (pairCode, title, eventDate) VALUES (?, ?, ?)`,
+        [pairCode, title, eventDate],
+        function (err) {
+            if (err) return res.status(500).json({ error: 'Database error.' });
+            res.json({ id: this.lastID, pairCode, title, eventDate });
+        }
+    );
+});
+
+// Update or Set Mood
+app.post('/api/mood', (req, res) => {
     const { username, mood } = req.body;
-    await User.updateOne({ username }, { mood });
-    res.json({ success: true });
+    db.run(
+        `INSERT INTO moods (username, mood) VALUES (?, ?) ON CONFLICT(username) DO UPDATE SET mood = ?, updated_at = CURRENT_TIMESTAMP`,
+        [username, mood, mood],
+        (err) => {
+            if (err) return res.status(500).json({ error: 'Database error.' });
+            res.json({ success: true, mood });
+        }
+    );
 });
 
-// ================= SOCKET.IO CHAT =================
+// ================= SOCKET.IO REAL-TIME EVENTS =================
+
 io.on('connection', (socket) => {
+    console.log('User connected:', socket.id);
+
+    // Join Room
     socket.on('join_room', (data) => {
-        socket.join(String(data.room));
-        socket.data.username = data.username;
-        socket.data.room = String(data.room);
-        io.to(data.room).emit('user_joined', { username: data.username, message: `${data.username} connected 💕` });
+        socket.join(data.room);
+        socket.to(data.room).emit('user_joined', {
+            message: `${data.username} is now online 💕`
+        });
     });
 
+    // Send Message (Text, Image, Audio)
     socket.on('send_message', (data) => {
-        const messageObj = {
-            username: data.username,
-            message: data.message,
-            type: data.type || 'text',
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        };
-        io.to(String(data.room)).emit('receive_message', messageObj);
+        // data = { id, room, username, message, type }
+        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        io.to(data.room).emit('receive_message', { ...data, time });
     });
 
+    // Message Reactions
+    socket.on('send_reaction', (data) => {
+        // data = { room, messageId, emoji, username }
+        io.to(data.room).emit('receive_reaction', data);
+    });
+
+    // Typing Indicators
     socket.on('typing', (data) => {
-        socket.to(String(data.room)).emit('display_typing', { username: data.username });
+        socket.to(data.room).emit('display_typing', data);
     });
 
     socket.on('stop_typing', (data) => {
-        socket.to(String(data.room)).emit('hide_typing');
+        socket.to(data.room).emit('hide_typing');
+    });
+
+    // Activity Badges Sync
+    socket.on('new_activity_badge', (data) => {
+        // data = { room, category }
+        socket.to(data.room).emit('show_badge', data);
+    });
+
+    // Anniversary Sync
+    socket.on('update_anniversary', (data) => {
+        // data = { room, startDate }
+        io.to(data.room).emit('anniversary_updated', data);
+    });
+
+    socket.on('disconnect', () => {
+        console.log('User disconnected:', socket.id);
     });
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`🚀 BaeSpace active on http://localhost:${PORT}`));
+// Start Server
+server.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+});

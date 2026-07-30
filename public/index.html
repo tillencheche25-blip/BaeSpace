@@ -242,6 +242,9 @@
             line-height: 1.4;
             word-wrap: break-word;
             box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+            position: relative;
+            cursor: pointer;
+            user-select: none;
         }
 
         .msg.sent {
@@ -261,6 +264,12 @@
         .msg img {
             max-width: 100%;
             border-radius: 6px;
+            margin-top: 4px;
+        }
+
+        .msg audio {
+            width: 220px;
+            height: 36px;
             margin-top: 4px;
         }
 
@@ -290,6 +299,42 @@
         .ticks {
             font-size: 0.75rem;
             color: #53bdeb;
+        }
+
+        /* REACTION BADGE ON MESSAGES */
+        .reaction-badge {
+            position: absolute;
+            bottom: -8px;
+            right: 8px;
+            background: #1f2c34;
+            border: 1px solid #00a884;
+            border-radius: 12px;
+            padding: 1px 5px;
+            font-size: 0.75rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+        }
+
+        /* REACTION POPUP BAR */
+        #reaction-bar {
+            display: none;
+            position: absolute;
+            background: #202c33;
+            border: 1px solid #2a3942;
+            border-radius: 20px;
+            padding: 6px 12px;
+            gap: 10px;
+            z-index: 200;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        #reaction-bar span {
+            font-size: 1.3rem;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        #reaction-bar span:hover {
+            transform: scale(1.3);
         }
 
         .sys-msg {
@@ -329,6 +374,11 @@
             font-size: 1.3rem;
             cursor: pointer;
             color: #8696a0;
+        }
+
+        .btn-icon.recording {
+            color: #e63946;
+            animation: pulse 0.8s infinite alternate;
         }
 
         .btn-send {
@@ -396,6 +446,30 @@
             border: 1px solid #2a3942;
         }
 
+        /* RELATIONSHIP COUNTER WIDGET */
+        .counter-card {
+            background: linear-gradient(135deg, #005c4b 0%, #202c33 100%);
+            border: 1px solid #00a884;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .counter-card h3 {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #8696a0;
+            margin-bottom: 8px;
+        }
+
+        .counter-display {
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: #00a884;
+        }
+
         /* BOTTOM NAVIGATION BAR */
         .bottom-nav {
             display: flex;
@@ -415,6 +489,7 @@
             flex-direction: column;
             align-items: center;
             gap: 3px;
+            position: relative;
         }
 
         .nav-item .icon {
@@ -423,6 +498,19 @@
 
         .nav-item.active {
             color: #00a884;
+        }
+
+        /* UNREAD BADGE */
+        .badge {
+            display: none;
+            position: absolute;
+            top: 6px;
+            right: 18px;
+            width: 9px;
+            height: 9px;
+            background-color: #e63946;
+            border-radius: 50%;
+            border: 2px solid #202c33;
         }
 
         #emoji-picker-container {
@@ -443,6 +531,16 @@
             <div class="logo">💕</div>
             <h1>BaeSpace</h1>
             <p style="color: #8696a0; font-size: 0.85rem;">Your Private Couple Universe</p>
+        </div>
+
+        <!-- REACTION POPUP BAR -->
+        <div id="reaction-bar">
+            <span onclick="sendReaction('❤️')">❤️</span>
+            <span onclick="sendReaction('😂')">😂</span>
+            <span onclick="sendReaction('😮')">😮</span>
+            <span onclick="sendReaction('🥺')">🥺</span>
+            <span onclick="sendReaction('🔥')">🔥</span>
+            <span onclick="sendReaction('👍')">👍</span>
         </div>
 
         <!-- APP HEADER -->
@@ -481,6 +579,7 @@
                 <div class="inputs">
                     <button class="btn-icon" id="emoji-btn" onclick="toggleEmojiPicker()">😊</button>
                     <button class="btn-icon" onclick="document.getElementById('file-input').click()">📷</button>
+                    <button class="btn-icon" id="mic-btn" onclick="toggleVoiceRecord()">🎙️</button>
                     <input type="file" id="file-input" style="display: none;" accept="image/*"
                         onchange="uploadImage(this)">
                     <input type="text" id="msg-input" placeholder="Type a message" oninput="handleTyping()"
@@ -494,9 +593,9 @@
                 <div class="section-header">Shared Memories 📸</div>
                 <div class="add-form">
                     <input type="text" id="mem-title" class="form-input" placeholder="Memory Title">
-                    <input type="text" id="mem-url" class="form-input" placeholder="Photo Image URL">
+                    <input type="file" id="mem-file" class="form-input" accept="image/*">
                     <input type="text" id="mem-caption" class="form-input" placeholder="Caption / Description">
-                    <button class="btn-primary" onclick="saveMemory()">Add Memory</button>
+                    <button class="btn-primary" onclick="saveMemory()">Upload Memory</button>
                 </div>
                 <div class="card-grid" id="memories-list"></div>
             </div>
@@ -545,6 +644,19 @@
             <!-- 6. PROFILE & SETTINGS -->
             <div id="profile-screen" class="screen-view">
                 <div class="section-header">Couple Profile 👤</div>
+
+                <!-- RELATIONSHIP COUNTER -->
+                <div class="counter-card">
+                    <h3>Together For</h3>
+                    <div id="days-together-display" class="counter-display">Set Anniversary Date</div>
+                </div>
+
+                <div class="add-form" style="margin-bottom: 15px;">
+                    <label style="font-size:0.8rem; color:#8696a0;">Set Relationship Start Date:</label>
+                    <input type="date" id="anniversary-input" class="form-input">
+                    <button class="btn-primary" style="padding:10px;" onclick="saveAnniversary()">Save Date</button>
+                </div>
+
                 <div class="card" style="text-align: center; margin-bottom: 20px;">
                     <div class="avatar" style="width: 60px; height: 60px; margin: 0 auto 10px auto; font-size: 1.5rem;">
                         💕</div>
@@ -564,10 +676,12 @@
                 <span>Chat</span>
             </div>
             <div class="nav-item" onclick="switchTab('memories-screen', this)">
+                <span class="badge" id="badge-memories"></span>
                 <span class="icon">📸</span>
                 <span>Memories</span>
             </div>
             <div class="nav-item" onclick="switchTab('notes-screen', this)">
+                <span class="badge" id="badge-notes"></span>
                 <span class="icon">💌</span>
                 <span>Notes</span>
             </div>
@@ -607,8 +721,14 @@
             document.getElementById(screenId).classList.add('active');
             navEl.classList.add('active');
 
-            if (screenId === 'memories-screen') fetchMemories();
-            if (screenId === 'notes-screen') fetchNotes();
+            if (screenId === 'memories-screen') {
+                fetchMemories();
+                document.getElementById('badge-memories').style.display = 'none';
+            }
+            if (screenId === 'notes-screen') {
+                fetchNotes();
+                document.getElementById('badge-notes').style.display = 'none';
+            }
             if (screenId === 'dates-screen') fetchDates();
         }
     </script>
