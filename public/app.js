@@ -100,8 +100,9 @@ function enterApp(username, room, avatar) {
 
     renderAvatarElements(currentUserAvatar);
     initEmojiPicker();
-    loadAnniversary();
     fetchUserAvatar();
+    fetchDates();
+    loadAnniversary();
 }
 
 function logout() {
@@ -158,6 +159,8 @@ async function saveAvatar(avatarData) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: currentUser, avatar: avatarData })
     });
+
+    socket.emit('profile_avatar_updated', { room: currentRoom, username: currentUser, avatar: avatarData });
 }
 
 function setEmojiAvatar(emoji) {
@@ -491,15 +494,20 @@ async function saveNote() {
 // ================= DATES FEATURE =================
 
 async function fetchDates() {
-    const res = await fetch(`/api/dates/${currentRoom}`);
-    const dates = await res.json();
-    const list = document.getElementById('dates-list');
-    list.innerHTML = dates.map(d => `
-        <div class="card">
-            <h4>${escapeHTML(d.title)}</h4>
-            <p>🗓️ ${new Date(d.eventDate).toLocaleDateString()}</p>
-        </div>
-    `).join('');
+    if (!currentRoom) return;
+    try {
+        const res = await fetch(`/api/dates/${currentRoom}`);
+        const dates = await res.json();
+        const list = document.getElementById('dates-list');
+        if (list) {
+            list.innerHTML = dates.map(d => `
+                <div class="card">
+                    <h4>${escapeHTML(d.title)}</h4>
+                    <p>🗓️ ${new Date(d.eventDate).toLocaleDateString()}</p>
+                </div>
+            `).join('');
+        }
+    } catch (err) { }
 }
 
 async function saveDate() {
@@ -534,28 +542,37 @@ async function updateMood(moodText) {
 
 // ================= RELATIONSHIP COUNTER =================
 
-function loadAnniversary() {
-    const saved = localStorage.getItem(`anniversary_${currentRoom}`);
-    if (saved) {
-        relationshipStartDate = new Date(saved);
-        startCounterTicker();
-    }
+async function loadAnniversary() {
+    if (!currentRoom) return;
+    try {
+        const res = await fetch(`/api/anniversary/${currentRoom}`);
+        const data = await res.json();
+        if (data.startDate) {
+            relationshipStartDate = new Date(data.startDate);
+            document.getElementById('anniversary-input').value = data.startDate;
+            startCounterTicker();
+        }
+    } catch (err) { }
 }
 
-function saveAnniversary() {
+async function saveAnniversary() {
     const dateVal = document.getElementById('anniversary-input').value;
     if (!dateVal) return alert('Please choose a date.');
 
-    localStorage.setItem(`anniversary_${currentRoom}`, dateVal);
-    relationshipStartDate = new Date(dateVal);
+    await fetch('/api/anniversary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pairCode: currentRoom, startDate: dateVal })
+    });
 
+    relationshipStartDate = new Date(dateVal);
     socket.emit('update_anniversary', { room: currentRoom, startDate: dateVal });
     startCounterTicker();
 }
 
 socket.on('anniversary_updated', (data) => {
-    localStorage.setItem(`anniversary_${data.room}`, data.startDate);
     relationshipStartDate = new Date(data.startDate);
+    document.getElementById('anniversary-input').value = data.startDate;
     startCounterTicker();
 });
 

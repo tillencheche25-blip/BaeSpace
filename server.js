@@ -57,9 +57,13 @@ db.exec(`
         mood TEXT,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+    CREATE TABLE IF NOT EXISTS anniversaries (
+        pairCode TEXT PRIMARY KEY,
+        startDate TEXT
+    );
 `);
 
-// Safe column addition for existing databases
+// Ensure avatar column exists if updating existing DB
 try {
     db.exec(`ALTER TABLE users ADD COLUMN avatar TEXT DEFAULT '👤'`);
 } catch (e) { }
@@ -207,6 +211,32 @@ app.post('/api/dates', (req, res) => {
     }
 });
 
+// Get Relationship Anniversary Date
+app.get('/api/anniversary/:pairCode', (req, res) => {
+    const { pairCode } = req.params;
+    try {
+        const row = db.prepare(`SELECT startDate FROM anniversaries WHERE pairCode = ?`).get(pairCode);
+        res.json({ startDate: row ? row.startDate : null });
+    } catch (err) {
+        res.status(500).json({ error: 'Database error.' });
+    }
+});
+
+// Save/Update Relationship Anniversary Date
+app.post('/api/anniversary', (req, res) => {
+    const { pairCode, startDate } = req.body;
+    try {
+        const stmt = db.prepare(`
+            INSERT INTO anniversaries (pairCode, startDate) VALUES (?, ?)
+            ON CONFLICT(pairCode) DO UPDATE SET startDate = ?
+        `);
+        stmt.run(pairCode, startDate, startDate);
+        res.json({ success: true, startDate });
+    } catch (err) {
+        res.status(500).json({ error: 'Database error.' });
+    }
+});
+
 // Update or Set Mood
 app.post('/api/mood', (req, res) => {
     const { username, mood } = req.body;
@@ -257,6 +287,10 @@ io.on('connection', (socket) => {
 
     socket.on('update_anniversary', (data) => {
         io.to(data.room).emit('anniversary_updated', data);
+    });
+
+    socket.on('profile_avatar_updated', (data) => {
+        socket.to(data.room).emit('partner_avatar_changed', data);
     });
 
     socket.on('disconnect', () => {
