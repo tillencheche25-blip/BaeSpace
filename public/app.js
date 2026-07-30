@@ -1,11 +1,9 @@
-// 1. Initialize socket connection first to avoid ReferenceError
 const socket = io();
 
 let currentUser = "";
 let currentRoom = "";
 let typingTimeout = null;
 
-// 2. JOIN ROOM FUNCTION
 function joinRoom() {
     const usernameField = document.getElementById('username-input');
     const roomField = document.getElementById('room-input');
@@ -14,23 +12,20 @@ function joinRoom() {
     currentRoom = roomField.value.trim();
 
     if (!currentUser || !currentRoom) {
-        alert("Please enter both your name and a room ID.");
+        alert("Please enter both your name and your private room code.");
         return;
     }
 
-    // Emit object payload
     socket.emit('join_room', {
         username: currentUser,
         room: currentRoom
     });
 
-    // Switch view
     document.getElementById('room-selection').style.display = 'none';
     document.getElementById('chat-interface').style.display = 'flex';
-    document.getElementById('header-title').innerText = `Room: ${currentRoom}`;
+    document.getElementById('header-title').innerText = `💕 Room: ${currentRoom}`;
 }
 
-// 3. SEND MESSAGE FUNCTION
 function sendMessage() {
     const msgField = document.getElementById('msg-input');
     const message = msgField.value.trim();
@@ -48,7 +43,6 @@ function sendMessage() {
     socket.emit('stop_typing', { room: currentRoom });
 }
 
-// 4. TYPING HANDLER
 function handleTyping() {
     socket.emit('typing', { room: currentRoom, username: currentUser });
 
@@ -58,7 +52,6 @@ function handleTyping() {
     }, 1500);
 }
 
-// 5. IMAGE UPLOAD HANDLER
 function uploadImage(input) {
     const file = input.files[0];
     if (!file) return;
@@ -76,9 +69,13 @@ function uploadImage(input) {
     input.value = '';
 }
 
-// ==========================================
-// SOCKET EVENT LISTENERS
-// ==========================================
+// SOCKET LISTENERS
+
+socket.on('load_history', (history) => {
+    const chatBox = document.getElementById('chat-box');
+    chatBox.innerHTML = ''; // clear initial view
+    history.forEach(data => appendChatMessage(data));
+});
 
 socket.on('user_joined', (data) => {
     appendSystemMessage(data.message);
@@ -103,9 +100,7 @@ socket.on('hide_typing', () => {
     document.getElementById('typing-status').innerText = '';
 });
 
-// ==========================================
-// DOM RENDER HELPERS
-// ==========================================
+// HELPERS
 
 function appendSystemMessage(msgText) {
     const chatBox = document.getElementById('chat-box');
@@ -130,12 +125,19 @@ function appendChatMessage(data) {
     }
 
     if (data.type === 'image') {
-        contentHTML += `<img src="${data.message}" alt="Uploaded image" />`;
+        contentHTML += `<img src="${data.message}" alt="Shared photo" />`;
     } else {
         contentHTML += `<div>${escapeHTML(data.message)}</div>`;
     }
 
-    contentHTML += `<span class="time">${data.time}</span>`;
+    // Add timestamp and double-tick checkmarks for sent messages
+    const ticksHTML = isSelf ? `<span class="ticks">✓✓</span>` : '';
+    contentHTML += `
+        <div class="msg-footer">
+            <span class="time">${data.time}</span>
+            ${ticksHTML}
+        </div>
+    `;
 
     msgDiv.innerHTML = contentHTML;
     chatBox.appendChild(msgDiv);

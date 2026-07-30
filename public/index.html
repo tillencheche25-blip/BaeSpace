@@ -3,7 +3,8 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>BaeSpace</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BaeSpace | Private Chat</title>
     <style>
         * {
             box-sizing: border-box;
@@ -12,8 +13,8 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #d1dbe1;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #ffdde1 0%, #ee9ca7 100%);
             height: 100vh;
             display: flex;
             align-items: center;
@@ -22,53 +23,77 @@
 
         .container {
             width: 100%;
-            max-width: 450px;
-            height: 600px;
-            background: #efeae2;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            max-width: 420px;
+            height: 90vh;
+            max-height: 700px;
+            background: #fff5f6;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(224, 75, 107, 0.25);
             display: flex;
             flex-direction: column;
             overflow: hidden;
         }
 
         .chat-header {
-            background: #075e54;
+            background: #e63946;
             color: white;
-            padding: 15px;
+            padding: 16px 20px;
             font-size: 1.1rem;
-            font-weight: 600;
+            font-weight: 700;
             display: flex;
             align-items: center;
             justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
         #room-selection {
-            padding: 30px 20px;
+            padding: 40px 25px;
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 16px;
+            text-align: center;
+        }
+
+        #room-selection h2 {
+            color: #e63946;
+            margin-bottom: 5px;
+        }
+
+        #room-selection p {
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
         }
 
         #room-selection input {
             width: 100%;
-            padding: 12px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
+            padding: 14px;
+            border: 2px solid #ffccd5;
+            border-radius: 10px;
             outline: none;
-            font-size: 0.95rem;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+
+        #room-selection input:focus {
+            border-color: #e63946;
         }
 
         #room-selection button {
             width: 100%;
-            padding: 12px;
-            background: #25d366;
+            padding: 14px;
+            background: #e63946;
             color: white;
             border: none;
-            border-radius: 6px;
+            border-radius: 10px;
             font-size: 1rem;
             font-weight: bold;
             cursor: pointer;
+            transition: transform 0.1s, background 0.2s;
+        }
+
+        #room-selection button:hover {
+            background: #d62828;
         }
 
         #chat-interface {
@@ -80,94 +105,115 @@
 
         #chat-box {
             flex: 1;
-            padding: 15px;
+            padding: 18px;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 8px;
-            background-image: radial-gradient(#d3c8be 10%, transparent 11%);
-            background-size: 12px 12px;
+            gap: 10px;
+            background: #fff0f3;
         }
 
         .msg {
-            max-width: 70%;
-            padding: 8px 12px;
-            border-radius: 7.5px;
-            font-size: 0.9rem;
-            line-height: 1.3;
+            max-width: 75%;
+            padding: 10px 14px;
+            border-radius: 14px;
+            font-size: 0.95rem;
+            line-height: 1.4;
             position: relative;
             word-wrap: break-word;
-            box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.13);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
         }
 
         .msg.sent {
             align-self: flex-end;
-            background-color: #d9fdd3;
-            color: #111b21;
-            border-top-right-radius: 0;
+            background: #e63946;
+            color: white;
+            border-bottom-right-radius: 2px;
         }
 
         .msg.received {
             align-self: flex-start;
-            background-color: #ffffff;
-            color: #111b21;
-            border-top-left-radius: 0;
+            background: #ffffff;
+            color: #2b2b2b;
+            border-bottom-left-radius: 2px;
+            border: 1px solid #ffe3e8;
         }
 
         .msg img {
             max-width: 100%;
-            border-radius: 5px;
-            margin-top: 4px;
+            border-radius: 8px;
+            margin-top: 5px;
             display: block;
         }
 
         .msg .sender {
-            font-weight: bold;
+            font-weight: 700;
             font-size: 0.75rem;
-            color: #075e54;
-            margin-bottom: 2px;
+            color: #e63946;
+            margin-bottom: 3px;
             display: block;
+        }
+
+        .msg.sent .sender {
+            color: #ffccd5;
+        }
+
+        .msg-footer {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 4px;
+            margin-top: 4px;
         }
 
         .msg .time {
             font-size: 0.65rem;
-            color: #667781;
-            text-align: right;
-            margin-top: 4px;
-            display: block;
+            opacity: 0.8;
+        }
+
+        .ticks {
+            font-size: 0.75rem;
+            color: #8ce99a;
         }
 
         .sys-msg {
             align-self: center;
-            background: rgba(255, 255, 255, 0.85);
-            padding: 5px 12px;
-            border-radius: 6px;
+            background: #ffe3e8;
+            padding: 6px 14px;
+            border-radius: 12px;
             font-size: 0.75rem;
-            color: #54656f;
-            margin: 5px 0;
+            color: #d62828;
+            margin: 6px 0;
+            font-weight: 500;
         }
 
         #typing-status {
             font-size: 0.75rem;
-            color: #ece5dd;
             font-weight: normal;
+            font-style: italic;
+            opacity: 0.9;
         }
 
         .inputs {
             display: flex;
-            padding: 10px;
-            background: #f0f2f5;
+            padding: 12px;
+            background: #ffffff;
             gap: 8px;
             align-items: center;
+            border-top: 1px solid #ffe3e8;
         }
 
         .inputs input[type="text"] {
             flex: 1;
-            padding: 10px 15px;
-            border: none;
-            border-radius: 20px;
+            padding: 12px 16px;
+            border: 1px solid #ffccd5;
+            border-radius: 24px;
             outline: none;
             font-size: 0.95rem;
+        }
+
+        .inputs input[type="text"]:focus {
+            border-color: #e63946;
         }
 
         .btn-icon {
@@ -175,22 +221,32 @@
             border: none;
             font-size: 1.3rem;
             cursor: pointer;
-            color: #54656f;
-            padding: 0 4px;
+            padding: 4px;
+            transition: transform 0.1s;
+        }
+
+        .btn-icon:hover {
+            transform: scale(1.1);
         }
 
         .btn-send {
-            padding: 10px 16px;
-            background: #075e54;
+            padding: 10px;
+            background: #e63946;
             color: white;
             border: none;
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
+            width: 42px;
+            height: 42px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
+            font-size: 1.1rem;
+            transition: background 0.2s;
+        }
+
+        .btn-send:hover {
+            background: #d62828;
         }
     </style>
 </head>
@@ -199,32 +255,31 @@
 
     <div class="container">
         <div class="chat-header">
-            <span id="header-title">❤️BaeSpace</span>
+            <span id="header-title">💕 BaeSpace</span>
             <span id="typing-status"></span>
         </div>
 
         <div id="room-selection">
-            <h3 style="color: #075e54;">Enter Details</h3>
-            <input type="text" id="username-input" placeholder="Your Name">
-            <input type="text" id="room-input" placeholder="Room ID (e.g. 6666)">
-            <button onclick="joinRoom()">Start Chatting</button>
+            <h2>Welcome to BaeSpace</h2>
+            <p>Your private space for two 💕</p>
+            <input type="text" id="username-input" placeholder="Your Name / Nickname">
+            <input type="text" id="room-input" placeholder="Couple Room ID (e.g. 777)">
+            <button onclick="joinRoom()">Enter BaeSpace</button>
         </div>
 
         <div id="chat-interface" style="display: none;">
             <div id="chat-box"></div>
             <div class="inputs">
-                <button class="btn-icon" onclick="document.getElementById('file-input').click()">📎</button>
+                <button class="btn-icon" onclick="document.getElementById('file-input').click()">📷</button>
                 <input type="file" id="file-input" style="display: none;" accept="image/*" onchange="uploadImage(this)">
-                <input type="text" id="msg-input" placeholder="Type a message..." oninput="handleTyping()"
+                <input type="text" id="msg-input" placeholder="Send some love..." oninput="handleTyping()"
                     onkeypress="if(event.key==='Enter') sendMessage()">
-                <button class="btn-send" onclick="sendMessage()">➤</button>
+                <button class="btn-send" onclick="sendMessage()">❤️</button>
             </div>
         </div>
     </div>
 
-    <!-- Socket.io MUST load first -->
     <script src="/socket.io/socket.io.js"></script>
-    <!-- Custom logic loads second -->
     <script src="app.js"></script>
 </body>
 
