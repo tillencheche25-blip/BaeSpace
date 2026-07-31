@@ -35,37 +35,27 @@ socket.on('receive_message', (data) => {
     appendMessage(data.text, 'received', data.time, data.image);
 });
 
-// Real-Time Profile Listener
+// Real-Time Profile Listener (Partner Sync)
 socket.on('receive_profile_update', (data) => {
     console.log('Profile update received from partner:', data);
 
+    // Sync Partner's Mood
     if (data.mood) {
         const moodHeader = document.getElementById('header-mood');
         if (moodHeader) moodHeader.textContent = data.mood;
     }
 
+    // Sync Partner's Avatar
     if (data.avatar) {
         const headerAvatar = document.getElementById('header-avatar');
         if (headerAvatar) headerAvatar.src = data.avatar;
     }
 
+    // Sync Anniversary Date
     if (data.anniversary) {
         const datePicker = document.getElementById('anniversary-picker');
         if (datePicker) datePicker.value = data.anniversary;
     }
-});
-
-// Real-Time Room Feature Listeners (Memories, Notes, Dates)
-socket.on('receive_memory', (data) => {
-    renderMemoryCard(data.caption, data.imageSrc);
-});
-
-socket.on('receive_note', (data) => {
-    renderNoteCard(data.text, data.date);
-});
-
-socket.on('receive_date', (data) => {
-    renderDateCard(data.title, data.scheduledTime);
 });
 
 // Initialize Emoji Mart Picker
@@ -120,7 +110,10 @@ function handleAuth(event) {
     const pairInput = document.getElementById('auth-pair-code');
     const pairCode = (pairInput && pairInput.value.trim()) ? pairInput.value.trim() : 'secret-pair-123';
 
+    // Store pair code in local storage
     localStorage.setItem('bae_pair_code', pairCode);
+
+    // Join room
     socket.emit('join_room', { roomId: pairCode });
 
     const authContainer = document.getElementById('auth-container');
@@ -181,7 +174,10 @@ function sendMessage() {
 
     const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+    // 1. Render message locally
     appendMessage(text, 'sent', time);
+
+    // 2. Broadcast via socket
     socket.emit('send_message', { text, time });
 
     input.value = '';
@@ -203,6 +199,7 @@ function uploadImage(event) {
     }
 }
 
+// Helper to Append Messages Cleanly
 function appendMessage(text, type, time, imageSrc = null) {
     const msgContainer = document.getElementById('messages-container');
     if (!msgContainer) return;
@@ -252,7 +249,7 @@ function syncProfileUpdate(updateData) {
     }
 }
 
-// Profile Customization
+// Profile Customization & Real-Time Sync
 function setMood(emoji) {
     const moodHeader = document.getElementById('header-mood');
     if (moodHeader) moodHeader.textContent = emoji;
@@ -288,7 +285,7 @@ function uploadCustomAvatar(event) {
     }
 }
 
-// Modals & Feature Syncing
+// Modals
 function openModal(id) {
     const modal = document.getElementById(id);
     if (modal) modal.classList.add('active');
@@ -301,39 +298,19 @@ function closeModal(id) {
 
 function saveMemory() {
     const captionInput = document.getElementById('memory-caption-input');
-    const imageInput = document.getElementById('memory-image-input');
     if (!captionInput) return;
 
     const caption = captionInput.value;
     if (caption) {
-        let imageSrc = `https://api.dicebear.com/7.x/shapes/svg?seed=${encodeURIComponent(caption)}`;
-
-        if (imageInput && imageInput.files && imageInput.files[0]) {
-            const reader = new FileReader();
-            reader.onload = function (e) {
-                imageSrc = e.target.result;
-                renderMemoryCard(caption, imageSrc);
-                socket.emit('add_memory', { caption, imageSrc });
-            };
-            reader.readAsDataURL(imageInput.files[0]);
-        } else {
-            renderMemoryCard(caption, imageSrc);
-            socket.emit('add_memory', { caption, imageSrc });
+        const grid = document.getElementById('memory-grid');
+        if (grid) {
+            const card = document.createElement('div');
+            card.className = 'memory-card';
+            card.innerHTML = `<img src="https://api.dicebear.com/7.x/shapes/svg?seed=${encodeURIComponent(caption)}" alt="Memory"><p>${escapeHtml(caption)}</p>`;
+            grid.appendChild(card);
         }
-
         closeModal('memory-modal');
         captionInput.value = '';
-        if (imageInput) imageInput.value = '';
-    }
-}
-
-function renderMemoryCard(caption, imageSrc) {
-    const grid = document.getElementById('memory-grid');
-    if (grid) {
-        const card = document.createElement('div');
-        card.className = 'memory-card';
-        card.innerHTML = `<img src="${imageSrc}" alt="Memory"><p>${escapeHtml(caption)}</p>`;
-        grid.appendChild(card);
     }
 }
 
@@ -343,49 +320,33 @@ function saveNote() {
 
     const text = noteInput.value;
     if (text) {
-        const date = "Just Now";
-        renderNoteCard(text, date);
-        socket.emit('add_note', { text, date });
-
+        const list = document.getElementById('notes-list');
+        if (list) {
+            const card = document.createElement('div');
+            card.className = 'note-card';
+            card.innerHTML = `<p class="note-text">${escapeHtml(text)}</p><span class="note-date">Just Now</span>`;
+            list.appendChild(card);
+        }
         closeModal('note-modal');
         noteInput.value = '';
     }
 }
 
-function renderNoteCard(text, date) {
-    const list = document.getElementById('notes-list');
-    if (list) {
-        const card = document.createElement('div');
-        card.className = 'note-card';
-        card.innerHTML = `<p class="note-text">${escapeHtml(text)}</p><span class="note-date">${date}</span>`;
-        list.appendChild(card);
-    }
-}
-
 function saveDate() {
     const titleInput = document.getElementById('date-title-input');
-    const timeInput = document.getElementById('date-time-input');
     if (!titleInput) return;
 
     const title = titleInput.value;
     if (title) {
-        const scheduledTime = timeInput && timeInput.value ? timeInput.value : "Scheduled";
-        renderDateCard(title, scheduledTime);
-        socket.emit('add_date', { title, scheduledTime });
-
+        const list = document.getElementById('dates-list');
+        if (list) {
+            const card = document.createElement('div');
+            card.className = 'date-card';
+            card.innerHTML = `<i class="fa-solid fa-heart date-icon"></i><div><h4>${escapeHtml(title)}</h4><p>Scheduled</p></div>`;
+            list.appendChild(card);
+        }
         closeModal('date-modal');
         titleInput.value = '';
-        if (timeInput) timeInput.value = '';
-    }
-}
-
-function renderDateCard(title, scheduledTime) {
-    const list = document.getElementById('dates-list');
-    if (list) {
-        const card = document.createElement('div');
-        card.className = 'date-card';
-        card.innerHTML = `<i class="fa-solid fa-heart date-icon"></i><div><h4>${escapeHtml(title)}</h4><p>${scheduledTime}</p></div>`;
-        list.appendChild(card);
     }
 }
 
