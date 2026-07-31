@@ -22,6 +22,29 @@ socket.on('receive_message', (data) => {
     appendMessage(data.text, 'received', data.time, data.image);
 });
 
+// Real-Time Profile Listener (Sync from Partner)
+socket.on('receive_profile_update', (data) => {
+    console.log('Profile update received from partner:', data);
+
+    // Update Partner's Mood in Header
+    if (data.mood) {
+        const moodHeader = document.getElementById('header-mood');
+        if (moodHeader) moodHeader.textContent = data.mood;
+    }
+
+    // Update Partner's Avatar in Header
+    if (data.avatar) {
+        const headerAvatar = document.getElementById('header-avatar');
+        if (headerAvatar) headerAvatar.src = data.avatar;
+    }
+
+    // Sync Anniversary Date
+    if (data.anniversary) {
+        const datePicker = document.getElementById('anniversary-picker');
+        if (datePicker) datePicker.value = data.anniversary;
+    }
+});
+
 // Initialize Emoji Mart Picker
 document.addEventListener('DOMContentLoaded', () => {
     try {
@@ -144,7 +167,7 @@ function uploadImage(event) {
     if (file) {
         const reader = new FileReader();
         reader.onload = function (e) {
-            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); me
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
             // Render locally
             appendMessage('', 'sent', time, e.target.result);
@@ -195,15 +218,20 @@ function initiateCall(type) {
     alert(`Starting ${type} call with your partner...`);
 }
 
-// Profile Customizations
+// Profile Customizations with Real-Time Socket Broadcast
 function setMood(emoji) {
     const moodHeader = document.getElementById('header-mood');
     if (moodHeader) moodHeader.textContent = emoji;
-    alert(`Mood updated to ${emoji}`);
+
+    // Broadcast mood to partner
+    socket.emit('update_profile', { mood: emoji });
 }
 
 function saveAnniversary(event) {
-    alert(`Anniversary saved for: ${event.target.value}`);
+    const anniversaryDate = event.target.value;
+
+    // Broadcast anniversary date to partner
+    socket.emit('update_profile', { anniversary: anniversaryDate });
 }
 
 function triggerAvatarUpload() {
@@ -216,10 +244,15 @@ function uploadCustomAvatar(event) {
     if (file) {
         const reader = new FileReader();
         reader.onload = function (e) {
+            const avatarData = e.target.result;
+
             const headerAvatar = document.getElementById('header-avatar');
             const profileAvatar = document.getElementById('profile-avatar');
-            if (headerAvatar) headerAvatar.src = e.target.result;
-            if (profileAvatar) profileAvatar.src = e.target.result;
+            if (headerAvatar) headerAvatar.src = avatarData;
+            if (profileAvatar) profileAvatar.src = avatarData;
+
+            // Broadcast avatar image to partner
+            socket.emit('update_profile', { avatar: avatarData });
         };
         reader.readAsDataURL(file);
     }
