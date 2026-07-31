@@ -5,6 +5,7 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
+
 const io = new Server(server, {
     cors: {
         origin: "*",
@@ -12,16 +13,24 @@ const io = new Server(server, {
     }
 });
 
-// Serve static frontend files from 'public' directory
+// Serve static files from root AND public folder
+app.use(express.static(__dirname));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Socket.io Connection Handler
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// Real-time WebSockets logic
 io.on('connection', (socket) => {
     console.log(`User connected: ${socket.id}`);
 
-    // Listen for live messages and broadcast to other connected windows
+    // Automatically join default couple room
+    socket.join('couple-room');
+
     socket.on('send_message', (data) => {
-        socket.broadcast.emit('receive_message', data);
+        // Broadcast to everyone else in the room
+        socket.to('couple-room').emit('receive_message', data);
     });
 
     socket.on('disconnect', () => {

@@ -1,12 +1,24 @@
-// Initialize Socket.io Connection
-const socket = io();
+// Initialize Socket.io Connection with fallback transports
+const socket = io({
+    transports: ['websocket', 'polling']
+});
 
 // Global States
 let isLoginMode = true;
 let isRecording = false;
 
-// Socket Event Listener for Incoming Real-Time Messages
+// Socket Connection Debugging & Room Handlers
+socket.on('connect', () => {
+    console.log('Connected to server with Socket ID:', socket.id);
+});
+
+socket.on('disconnect', () => {
+    console.log('Disconnected from server');
+});
+
+// Real-Time Message Listener
 socket.on('receive_message', (data) => {
+    console.log('Message received from partner:', data);
     appendMessage(data.text, 'received', data.time, data.image);
 });
 
@@ -16,11 +28,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const pickerOptions = {
             onEmojiSelect: (emoji) => {
                 const input = document.getElementById('msg-input');
-                input.value += emoji.native;
+                if (input) input.value += emoji.native;
             }
         };
         const picker = new EmojiMart.Picker(pickerOptions);
-        document.getElementById('emoji-picker-container').appendChild(picker);
+        const container = document.getElementById('emoji-picker-container');
+        if (container) container.appendChild(picker);
     } catch (e) {
         console.log("Emoji picker ready.");
     }
@@ -39,28 +52,31 @@ function toggleAuthMode(event) {
     const pairInput = document.getElementById('auth-pair-code');
 
     if (!isLoginMode) {
-        title.textContent = "Create Account";
-        subtitle.textContent = "Start sharing moments together";
-        submitBtn.textContent = "Sign Up";
-        toggleText.textContent = "Already have an account?";
-        toggleLink.textContent = "Log In";
-        pairInput.style.display = "block";
+        if (title) title.textContent = "Create Account";
+        if (subtitle) subtitle.textContent = "Start sharing moments together";
+        if (submitBtn) submitBtn.textContent = "Sign Up";
+        if (toggleText) toggleText.textContent = "Already have an account?";
+        if (toggleLink) toggleLink.textContent = "Log In";
+        if (pairInput) pairInput.style.display = "block";
     } else {
-        title.textContent = "BaeSpace";
-        subtitle.textContent = "Connect privately with your partner";
-        submitBtn.textContent = "Log In";
-        toggleText.textContent = "Don't have an account?";
-        toggleLink.textContent = "Sign Up";
+        if (title) title.textContent = "BaeSpace";
+        if (subtitle) subtitle.textContent = "Connect privately with your partner";
+        if (submitBtn) submitBtn.textContent = "Log In";
+        if (toggleText) toggleText.textContent = "Don't have an account?";
+        if (toggleLink) toggleLink.textContent = "Sign Up";
+        if (pairInput) pairInput.style.display = "none";
     }
 }
 
 function handleAuth(event) {
     event.preventDefault();
-    document.getElementById('auth-container').classList.add('hidden');
+    const authContainer = document.getElementById('auth-container');
+    if (authContainer) authContainer.classList.add('hidden');
 }
 
 function logout() {
-    document.getElementById('auth-container').classList.remove('hidden');
+    const authContainer = document.getElementById('auth-container');
+    if (authContainer) authContainer.classList.remove('hidden');
 }
 
 function deleteAccount() {
@@ -89,11 +105,12 @@ function switchTab(tabName) {
 // Real-Time Messaging Functions
 function toggleEmojiPicker() {
     const container = document.getElementById('emoji-picker-container');
-    container.classList.toggle('emoji-picker-hidden');
+    if (container) container.classList.toggle('emoji-picker-hidden');
 }
 
 function triggerFileInput() {
-    document.getElementById('image-upload').click();
+    const uploadInput = document.getElementById('image-upload');
+    if (uploadInput) uploadInput.click();
 }
 
 function handleKeyPress(event) {
@@ -104,6 +121,8 @@ function handleKeyPress(event) {
 
 function sendMessage() {
     const input = document.getElementById('msg-input');
+    if (!input) return;
+
     const text = input.value.trim();
     if (!text) return;
 
@@ -116,7 +135,8 @@ function sendMessage() {
     socket.emit('send_message', { text, time });
 
     input.value = '';
-    document.getElementById('emoji-picker-container').classList.add('emoji-picker-hidden');
+    const container = document.getElementById('emoji-picker-container');
+    if (container) container.classList.add('emoji-picker-hidden');
 }
 
 function uploadImage(event) {
@@ -124,7 +144,7 @@ function uploadImage(event) {
     if (file) {
         const reader = new FileReader();
         reader.onload = function (e) {
-            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); me
 
             // Render locally
             appendMessage('', 'sent', time, e.target.result);
@@ -139,6 +159,8 @@ function uploadImage(event) {
 // Helper to Append Messages Cleanly
 function appendMessage(text, type, time, imageSrc = null) {
     const msgContainer = document.getElementById('messages-container');
+    if (!msgContainer) return;
+
     const msgElement = document.createElement('div');
     msgElement.className = `msg ${type}`;
 
@@ -162,9 +184,9 @@ function toggleVoiceRecord() {
     const micBtn = document.getElementById('mic-btn');
     isRecording = !isRecording;
     if (isRecording) {
-        micBtn.style.color = '#ea4335';
+        if (micBtn) micBtn.style.color = '#ea4335';
     } else {
-        micBtn.style.color = '#8696a0';
+        if (micBtn) micBtn.style.color = '#8696a0';
         alert("Voice note feature processing...");
     }
 }
@@ -175,7 +197,8 @@ function initiateCall(type) {
 
 // Profile Customizations
 function setMood(emoji) {
-    document.getElementById('header-mood').textContent = emoji;
+    const moodHeader = document.getElementById('header-mood');
+    if (moodHeader) moodHeader.textContent = emoji;
     alert(`Mood updated to ${emoji}`);
 }
 
@@ -184,7 +207,8 @@ function saveAnniversary(event) {
 }
 
 function triggerAvatarUpload() {
-    document.getElementById('avatar-upload').click();
+    const avatarInput = document.getElementById('avatar-upload');
+    if (avatarInput) avatarInput.click();
 }
 
 function uploadCustomAvatar(event) {
@@ -192,8 +216,10 @@ function uploadCustomAvatar(event) {
     if (file) {
         const reader = new FileReader();
         reader.onload = function (e) {
-            document.getElementById('header-avatar').src = e.target.result;
-            document.getElementById('profile-avatar').src = e.target.result;
+            const headerAvatar = document.getElementById('header-avatar');
+            const profileAvatar = document.getElementById('profile-avatar');
+            if (headerAvatar) headerAvatar.src = e.target.result;
+            if (profileAvatar) profileAvatar.src = e.target.result;
         };
         reader.readAsDataURL(file);
     }
@@ -201,49 +227,66 @@ function uploadCustomAvatar(event) {
 
 // Modals
 function openModal(id) {
-    document.getElementById(id).classList.add('active');
+    const modal = document.getElementById(id);
+    if (modal) modal.classList.add('active');
 }
 
 function closeModal(id) {
-    document.getElementById(id).classList.remove('active');
+    const modal = document.getElementById(id);
+    if (modal) modal.classList.remove('active');
 }
 
 function saveMemory() {
-    const caption = document.getElementById('memory-caption-input').value;
+    const captionInput = document.getElementById('memory-caption-input');
+    if (!captionInput) return;
+
+    const caption = captionInput.value;
     if (caption) {
         const grid = document.getElementById('memory-grid');
-        const card = document.createElement('div');
-        card.className = 'memory-card';
-        card.innerHTML = `<img src="https://api.dicebear.com/7.x/shapes/svg?seed=${encodeURIComponent(caption)}" alt="Memory"><p>${escapeHtml(caption)}</p>`;
-        grid.appendChild(card);
+        if (grid) {
+            const card = document.createElement('div');
+            card.className = 'memory-card';
+            card.innerHTML = `<img src="https://api.dicebear.com/7.x/shapes/svg?seed=${encodeURIComponent(caption)}" alt="Memory"><p>${escapeHtml(caption)}</p>`;
+            grid.appendChild(card);
+        }
         closeModal('memory-modal');
-        document.getElementById('memory-caption-input').value = '';
+        captionInput.value = '';
     }
 }
 
 function saveNote() {
-    const text = document.getElementById('note-text-input').value;
+    const noteInput = document.getElementById('note-text-input');
+    if (!noteInput) return;
+
+    const text = noteInput.value;
     if (text) {
         const list = document.getElementById('notes-list');
-        const card = document.createElement('div');
-        card.className = 'note-card';
-        card.innerHTML = `<p class="note-text">${escapeHtml(text)}</p><span class="note-date">Just Now</span>`;
-        list.appendChild(card);
+        if (list) {
+            const card = document.createElement('div');
+            card.className = 'note-card';
+            card.innerHTML = `<p class="note-text">${escapeHtml(text)}</p><span class="note-date">Just Now</span>`;
+            list.appendChild(card);
+        }
         closeModal('note-modal');
-        document.getElementById('note-text-input').value = '';
+        noteInput.value = '';
     }
 }
 
 function saveDate() {
-    const title = document.getElementById('date-title-input').value;
+    const titleInput = document.getElementById('date-title-input');
+    if (!titleInput) return;
+
+    const title = titleInput.value;
     if (title) {
         const list = document.getElementById('dates-list');
-        const card = document.createElement('div');
-        card.className = 'date-card';
-        card.innerHTML = `<i class="fa-solid fa-heart date-icon"></i><div><h4>${escapeHtml(title)}</h4><p>Scheduled</p></div>`;
-        list.appendChild(card);
+        if (list) {
+            const card = document.createElement('div');
+            card.className = 'date-card';
+            card.innerHTML = `<i class="fa-solid fa-heart date-icon"></i><div><h4>${escapeHtml(title)}</h4><p>Scheduled</p></div>`;
+            list.appendChild(card);
+        }
         closeModal('date-modal');
-        document.getElementById('date-title-input').value = '';
+        titleInput.value = '';
     }
 }
 
