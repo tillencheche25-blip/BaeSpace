@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>BaeSpace | Private Couple Space</title>
 
     <link rel="manifest" href="/manifest.json">
@@ -22,19 +22,23 @@
             padding: 0;
         }
 
+        /* Outer desktop wrapper - ensures mobile frame is perfectly centered */
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background: #111b21;
+            background: #0d1418;
             height: 100vh;
+            width: 100vw;
             display: flex;
             align-items: center;
             justify-content: center;
             color: #e9edef;
+            overflow: hidden;
         }
 
+        /* Simulated Mobile Viewport Frame */
         .container {
             width: 100%;
-            max-width: 480px;
+            max-width: 440px;
             height: 100vh;
             max-height: 850px;
             background: #0b141a;
@@ -42,7 +46,9 @@
             flex-direction: column;
             overflow: hidden;
             position: relative;
-            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+            border-radius: 16px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+            border: 1px solid #202c33;
         }
 
         /* SPLASH SCREEN */
@@ -80,6 +86,100 @@
         #splash-screen h1 {
             color: #00a884;
             font-size: 1.8rem;
+        }
+
+        /* AUTH SCREEN - CONSTRAINED & CENTERED INSIDE APP FRAME */
+        #auth-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #111b21;
+            display: flex !important;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 999;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+
+        .auth-card {
+            width: 100%;
+            max-width: 380px;
+            background: #1f2c34;
+            padding: 30px 24px;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            box-sizing: border-box;
+        }
+
+        #auth-container h2 {
+            color: #00a884;
+            font-size: 1.6rem;
+            margin-bottom: 8px;
+        }
+
+        #auth-container p.subtitle {
+            color: #8696a0;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+        }
+
+        #auth-container input,
+        .form-input {
+            width: 100%;
+            padding: 14px;
+            background: #202c33;
+            border: 1px solid #2a3942;
+            border-radius: 8px;
+            outline: none;
+            color: #e9edef;
+            font-size: 0.95rem;
+            box-sizing: border-box;
+            margin-bottom: 12px;
+        }
+
+        #auth-container input:focus,
+        .form-input:focus {
+            border-color: #00a884;
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 14px;
+            background: #00a884;
+            color: #111b21;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+            box-sizing: border-box;
+            margin-bottom: 12px;
+        }
+
+        .btn-primary:hover {
+            background: #029071;
+        }
+
+        .toggle-text {
+            font-size: 0.85rem;
+            color: #8696a0;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+
+        .toggle-text span {
+            color: #00a884;
+            font-weight: bold;
         }
 
         /* HEADER */
@@ -133,74 +233,6 @@
             color: #00a884;
             display: block;
             height: 14px;
-        }
-
-        /* AUTH SCREEN */
-        #auth-container {
-            padding: 40px 30px;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            text-align: center;
-            background: #111b21;
-            height: 100%;
-            justify-content: center;
-        }
-
-        #auth-container h2 {
-            color: #00a884;
-            font-size: 1.6rem;
-        }
-
-        #auth-container p.subtitle {
-            color: #8696a0;
-            font-size: 0.9rem;
-            margin-bottom: 10px;
-        }
-
-        #auth-container input,
-        .form-input {
-            width: 100%;
-            padding: 14px;
-            background: #202c33;
-            border: 1px solid #2a3942;
-            border-radius: 8px;
-            outline: none;
-            color: #e9edef;
-            font-size: 0.95rem;
-        }
-
-        #auth-container input:focus,
-        .form-input:focus {
-            border-color: #00a884;
-        }
-
-        .btn-primary {
-            width: 100%;
-            padding: 14px;
-            background: #00a884;
-            color: #111b21;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        .btn-primary:hover {
-            background: #029071;
-        }
-
-        .toggle-text {
-            font-size: 0.85rem;
-            color: #8696a0;
-            cursor: pointer;
-        }
-
-        .toggle-text span {
-            color: #00a884;
-            font-weight: bold;
         }
 
         /* MAIN APP VIEWS */
@@ -344,7 +376,6 @@
             color: #53bdeb;
         }
 
-        /* REACTION BADGE ON MESSAGES */
         .reaction-badge {
             position: absolute;
             bottom: -8px;
@@ -357,7 +388,6 @@
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
         }
 
-        /* REACTION POPUP BAR */
         #reaction-bar {
             display: none;
             position: absolute;
@@ -378,17 +408,6 @@
 
         #reaction-bar span:hover {
             transform: scale(1.3);
-        }
-
-        .sys-msg {
-            align-self: center;
-            background: #182229;
-            padding: 5px 12px;
-            border-radius: 6px;
-            font-size: 0.72rem;
-            color: #8696a0;
-            margin: 8px 0;
-            border: 1px solid #222d34;
         }
 
         .inputs {
@@ -489,7 +508,6 @@
             border: 1px solid #2a3942;
         }
 
-        /* RELATIONSHIP COUNTER WIDGET */
         .counter-card {
             background: linear-gradient(135deg, #005c4b 0%, #202c33 100%);
             border: 1px solid #00a884;
@@ -513,7 +531,6 @@
             color: #00a884;
         }
 
-        /* PROFILE AVATAR PICKER */
         .avatar-edit-container {
             display: flex;
             flex-direction: column;
@@ -599,7 +616,6 @@
             color: #00a884;
         }
 
-        /* UNREAD BADGE */
         .badge {
             display: none;
             position: absolute;
@@ -656,16 +672,18 @@
 
         <!-- AUTH SCREEN -->
         <div id="auth-container">
-            <h2 id="auth-title">BaeSpace 💕</h2>
-            <p id="auth-subtitle" class="subtitle">Enter your credentials to enter your space</p>
+            <div class="auth-card">
+                <h2 id="auth-title">BaeSpace 💕</h2>
+                <p id="auth-subtitle" class="subtitle">Enter your credentials to enter your space</p>
 
-            <input type="text" id="auth-username" placeholder="Username">
-            <input type="password" id="auth-password" placeholder="Password">
-            <input type="text" id="auth-paircode" placeholder="Couple Pair Code (e.g. 777)" style="display: none;">
+                <input type="text" id="auth-username" placeholder="Username">
+                <input type="password" id="auth-password" placeholder="Password">
+                <input type="text" id="auth-paircode" placeholder="Couple Pair Code (e.g. 777)" style="display: none;">
 
-            <button id="auth-btn" class="btn-primary" onclick="handleAuth()">Login</button>
-            <p class="toggle-text" onclick="toggleAuthMode()">Don't have an account? <span id="toggle-link">Sign
-                    Up</span></p>
+                <button id="auth-btn" class="btn-primary" onclick="handleAuth()">Login</button>
+                <p class="toggle-text" onclick="toggleAuthMode()">Don't have an account? <span id="toggle-link">Sign
+                        Up</span></p>
+            </div>
         </div>
 
         <!-- MAIN APP VIEWPORT -->
@@ -682,7 +700,6 @@
                     <input type="file" id="file-input" style="display: none;" accept="image/*"
                         onchange="uploadImage(this)">
 
-                    <!-- Cleaned Input: app.js listens for Keydown & Click safely -->
                     <input type="text" id="msg-input" placeholder="Type a message">
                     <button class="btn-send" id="send-btn">➤</button>
                 </div>
@@ -745,7 +762,6 @@
             <div id="profile-screen" class="screen-view">
                 <div class="section-header">Couple Profile 👤</div>
 
-                <!-- RELATIONSHIP COUNTER -->
                 <div class="counter-card">
                     <h3>Together For</h3>
                     <div id="days-together-display" class="counter-display">Set Anniversary Date</div>
@@ -782,8 +798,10 @@
                     <button class="btn-primary" style="padding:10px;" onclick="saveAnniversary()">Save Date</button>
                 </div>
 
-                <button class="btn-primary" style="background: #e63946; color: white;"
+                <button class="btn-primary" style="background: #202c33; color: white; margin-bottom: 10px;"
                     onclick="logout()">Logout</button>
+                <button class="btn-primary" style="background: #e63946; color: white;" onclick="deleteAccount()">Delete
+                    Account Permanently</button>
             </div>
 
         </div>
@@ -860,4 +878,4 @@
     </script>
 </body>
 
-</html>// ==========================================
+</html>

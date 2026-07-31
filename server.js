@@ -37,14 +37,24 @@ function getVerb(name) {
     return (lower.includes(' and ') || lower.includes('&')) ? 'are' : 'is';
 }
 
-// REST ENDPOINTS
+// --- AUTH ENDPOINTS ---
+
 app.post('/api/auth/register', (req, res) => {
     const { username, password, pairCode } = req.body;
     if (!username || !password || !pairCode) {
         return res.status(400).json({ message: 'All fields are required.' });
     }
-    const existingUser = users.find(u => u.username === username);
-    if (existingUser) return res.status(400).json({ message: 'Username exists.' });
+
+    const existingUser = users.find(u => u.username.toLowerCase() === username.toLowerCase());
+    if (existingUser) {
+        return res.status(400).json({ message: 'Username already taken.' });
+    }
+
+    // RESTRICTION: Limit room to a maximum of 2 people
+    const existingRoomUsers = users.filter(u => u.pairCode === pairCode);
+    if (existingRoomUsers.length >= 2) {
+        return res.status(403).json({ message: 'This room is full! Maximum of 2 people per room code.' });
+    }
 
     const newUser = { username, password, pairCode, avatar: null, anniversary: null };
     users.push(newUser);
@@ -53,14 +63,41 @@ app.post('/api/auth/register', (req, res) => {
 
 app.post('/api/auth/login', (req, res) => {
     const { username, password } = req.body;
-    const user = users.find(u => u.username === username && u.password === password);
-    if (!user) return res.status(401).json({ message: 'Invalid credentials.' });
+    const user = users.find(u => u.username.toLowerCase() === username.toLowerCase() && u.password === password);
+
+    if (!user) {
+        return res.status(401).json({ message: 'Invalid username or password.' });
+    }
     return res.status(200).json({ user });
 });
 
+// --- PERMANENT ACCOUNT DELETION ---
+
+app.post('/api/auth/delete-account', (req, res) => {
+    const { username, pairCode } = req.body;
+    if (!username) return res.status(400).json({ message: 'Username required.' });
+
+    const initialLength = users.length;
+    users = users.filter(u => u.username.toLowerCase() !== username.toLowerCase());
+
+    if (users.length === initialLength) {
+        return res.status(404).json({ message: 'User not found.' });
+    }
+
+    if (pairCode) {
+        io.to(pairCode).emit('receive-message', {
+            type: 'system',
+            text: `${username} has permanently deleted their account.`
+        });
+    }
+
+    return res.status(200).json({ success: true, message: 'Account permanently deleted.' });
+});
+
+// --- CHAT & MEDIA ENDPOINTS ---
+
 app.get('/api/chat/:pairCode', (req, res) => {
     const { pairCode } = req.params;
-    // Filter out any accidental system messages from memory array
     const history = (chatHistory[pairCode] || []).filter(msg => msg.type !== 'system');
     res.json(history);
 });
@@ -84,7 +121,8 @@ app.post('/api/chat/upload', upload.single('file'), (req, res) => {
     res.json({ success: true, message: messageData });
 });
 
-// SOCKET LOGIC
+// --- SOCKET LOGIC ---
+
 io.on('connection', (socket) => {
     socket.on('join-room', ({ pairCode, username }) => {
         socket.join(pairCode);
@@ -92,7 +130,6 @@ io.on('connection', (socket) => {
         socket.username = username;
 
         const verb = getVerb(username);
-        // Live alert ONLY to OTHER clients (DO NOT store in chatHistory)
         socket.to(pairCode).emit('receive-message', {
             type: 'system',
             text: `${username} ${verb} now online 💕`,
@@ -105,13 +142,10 @@ io.on('connection', (socket) => {
         data.id = data.id || Date.now().toString();
 
         if (!chatHistory[data.pairCode]) chatHistory[data.pairCode] = [];
-
-        // Strict guard: NEVER store system messages in history
         if (data.type !== 'system') {
             chatHistory[data.pairCode].push(data);
         }
 
-        // Broadcast message to everyone in the room
         io.to(data.pairCode).emit('receive-message', data);
     });
 
@@ -127,4 +161,4 @@ io.on('connection', (socket) => {
     });
 });
 
-server.listen(PORT, () => console.log(`Server listening on ${PORT}`));
+server.listen(PORT, () => console.log(`BaeSpace running on port ${PORT}`));
