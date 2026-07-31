@@ -6,7 +6,6 @@ const path = require('path');
 const app = express();
 const server = http.createServer(app);
 
-// Enable Socket.io with strict WebSockets fallback & CORS
 const io = new Server(server, {
     cors: {
         origin: "*",
@@ -33,7 +32,6 @@ io.on('connection', (socket) => {
     socket.on('join_room', (data) => {
         const roomId = (data && data.roomId) ? data.roomId.trim().toLowerCase() : 'secret-pair-123';
 
-        // Leave any existing rooms except its own ID
         socket.rooms.forEach(room => {
             if (room !== socket.id) socket.leave(room);
         });
@@ -42,10 +40,8 @@ io.on('connection', (socket) => {
         socket.currentRoom = roomId;
         console.log(`[Room Join] Socket ${socket.id} joined room: ${roomId}`);
 
-        // Confirm room join back to sender
         socket.emit('room_joined', { roomId });
 
-        // If partner already has profile state in this room, sync it to the new user
         if (roomStates[roomId]) {
             socket.emit('receive_profile_update', roomStates[roomId]);
         }
@@ -57,15 +53,27 @@ io.on('connection', (socket) => {
         socket.to(room).emit('receive_message', data);
     });
 
-    // Real-time Profile Updates (Sync & Save State)
+    // Real-time Profile Updates
     socket.on('update_profile', (data) => {
         const room = socket.currentRoom || 'secret-pair-123';
-
-        // Save latest state for room
         roomStates[room] = { ...(roomStates[room] || {}), ...data };
-
-        // Broadcast update to partner in room
         socket.to(room).emit('receive_profile_update', data);
+    });
+
+    // Real-time Sync for Memories, Notes, and Dates
+    socket.on('add_memory', (data) => {
+        const room = socket.currentRoom || 'secret-pair-123';
+        socket.to(room).emit('receive_memory', data);
+    });
+
+    socket.on('add_note', (data) => {
+        const room = socket.currentRoom || 'secret-pair-123';
+        socket.to(room).emit('receive_note', data);
+    });
+
+    socket.on('add_date', (data) => {
+        const room = socket.currentRoom || 'secret-pair-123';
+        socket.to(room).emit('receive_date', data);
     });
 
     socket.on('disconnect', () => {
