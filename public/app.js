@@ -35,31 +35,59 @@ socket.on('receive_message', (data) => {
     appendMessage(data.text, 'received', data.time, data.image);
 });
 
-// Real-Time Profile Listener (Partner Sync)
+// Real-Time Profile Listener (Sync Partner Changes)
 socket.on('receive_profile_update', (data) => {
     console.log('Profile update received from partner:', data);
 
-    // Sync Partner's Mood
     if (data.mood) {
         const moodHeader = document.getElementById('header-mood');
         if (moodHeader) moodHeader.textContent = data.mood;
     }
 
-    // Sync Partner's Avatar
     if (data.avatar) {
         const headerAvatar = document.getElementById('header-avatar');
         if (headerAvatar) headerAvatar.src = data.avatar;
     }
 
-    // Sync Anniversary Date
     if (data.anniversary) {
         const datePicker = document.getElementById('anniversary-picker');
         if (datePicker) datePicker.value = data.anniversary;
+        calculateDaysTogether(data.anniversary);
     }
 });
 
-// Initialize Emoji Mart Picker
+// Real-Time Room Feature Listeners (Memories, Notes, Dates)
+socket.on('receive_memory', (data) => {
+    renderMemoryCard(data.caption, data.imageSrc);
+});
+
+socket.on('receive_note', (data) => {
+    renderNoteCard(data.text, data.date);
+});
+
+socket.on('receive_date', (data) => {
+    renderDateCard(data.title, data.scheduledTime);
+});
+
+// Initialize App & Authentication Check
 document.addEventListener('DOMContentLoaded', () => {
+    // Check session state for login modal
+    const isLoggedIn = localStorage.getItem('bae_logged_in');
+    const authContainer = document.getElementById('auth-container');
+
+    if (isLoggedIn === 'true') {
+        if (authContainer) {
+            authContainer.classList.add('hidden');
+            authContainer.classList.remove('active');
+        }
+    } else {
+        if (authContainer) {
+            authContainer.classList.remove('hidden');
+            authContainer.classList.add('active');
+        }
+    }
+
+    // Initialize Emoji Picker
     try {
         const pickerOptions = {
             onEmojiSelect: (emoji) => {
@@ -72,6 +100,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (container) container.appendChild(picker);
     } catch (e) {
         console.log("Emoji picker ready.");
+    }
+
+    // Load saved anniversary date if available
+    const datePicker = document.getElementById('anniversary-picker');
+    if (datePicker && datePicker.value) {
+        calculateDaysTogether(datePicker.value);
     }
 });
 
@@ -107,22 +141,31 @@ function toggleAuthMode(event) {
 function handleAuth(event) {
     event.preventDefault();
 
-    const pairInput = document.getElementById('auth-pair-code');
+    const pairInput = document.getElementById('auth-pair-input');
     const pairCode = (pairInput && pairInput.value.trim()) ? pairInput.value.trim() : 'secret-pair-123';
 
-    // Store pair code in local storage
+    // Store login session
+    localStorage.setItem('bae_logged_in', 'true');
     localStorage.setItem('bae_pair_code', pairCode);
 
     // Join room
     socket.emit('join_room', { roomId: pairCode });
 
+    // Hide Login Overlay
     const authContainer = document.getElementById('auth-container');
-    if (authContainer) authContainer.classList.add('hidden');
+    if (authContainer) {
+        authContainer.classList.add('hidden');
+        authContainer.classList.remove('active');
+    }
 }
 
 function logout() {
+    localStorage.removeItem('bae_logged_in');
     const authContainer = document.getElementById('auth-container');
-    if (authContainer) authContainer.classList.remove('hidden');
+    if (authContainer) {
+        authContainer.classList.remove('hidden');
+        authContainer.classList.add('active');
+    }
 }
 
 function deleteAccount() {
@@ -174,10 +217,7 @@ function sendMessage() {
 
     const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    // 1. Render message locally
     appendMessage(text, 'sent', time);
-
-    // 2. Broadcast via socket
     socket.emit('send_message', { text, time });
 
     input.value = '';
@@ -199,7 +239,6 @@ function uploadImage(event) {
     }
 }
 
-// Helper to Append Messages Cleanly
 function appendMessage(text, type, time, imageSrc = null) {
     const msgContainer = document.getElementById('messages-container');
     if (!msgContainer) return;
@@ -249,7 +288,7 @@ function syncProfileUpdate(updateData) {
     }
 }
 
-// Profile Customization & Real-Time Sync
+// Profile Customization & Days Counter
 function setMood(emoji) {
     const moodHeader = document.getElementById('header-mood');
     if (moodHeader) moodHeader.textContent = emoji;
@@ -259,7 +298,23 @@ function setMood(emoji) {
 
 function saveAnniversary(event) {
     const anniversaryDate = event.target.value;
+    calculateDaysTogether(anniversaryDate);
     syncProfileUpdate({ anniversary: anniversaryDate });
+}
+
+function calculateDaysTogether(startDateStr) {
+    if (!startDateStr) return;
+
+    const startDate = new Date(startDateStr);
+    const today = new Date();
+
+    const diffTime = Math.abs(today - startDate);
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    const displayElement = document.getElementById('days-together-count');
+    if (displayElement) {
+        displayElement.textContent = diffDays;
+    }
 }
 
 function triggerAvatarUpload() {
@@ -285,7 +340,7 @@ function uploadCustomAvatar(event) {
     }
 }
 
-// Modals
+// Modals & Feature Syncing
 function openModal(id) {
     const modal = document.getElementById(id);
     if (modal) modal.classList.add('active');
@@ -298,19 +353,39 @@ function closeModal(id) {
 
 function saveMemory() {
     const captionInput = document.getElementById('memory-caption-input');
+    const imageInput = document.getElementById('memory-image-input');
     if (!captionInput) return;
 
     const caption = captionInput.value;
     if (caption) {
-        const grid = document.getElementById('memory-grid');
-        if (grid) {
-            const card = document.createElement('div');
-            card.className = 'memory-card';
-            card.innerHTML = `<img src="https://api.dicebear.com/7.x/shapes/svg?seed=${encodeURIComponent(caption)}" alt="Memory"><p>${escapeHtml(caption)}</p>`;
-            grid.appendChild(card);
+        let imageSrc = `https://api.dicebear.com/7.x/shapes/svg?seed=${encodeURIComponent(caption)}`;
+
+        if (imageInput && imageInput.files && imageInput.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                imageSrc = e.target.result;
+                renderMemoryCard(caption, imageSrc);
+                socket.emit('add_memory', { caption, imageSrc });
+            };
+            reader.readAsDataURL(imageInput.files[0]);
+        } else {
+            renderMemoryCard(caption, imageSrc);
+            socket.emit('add_memory', { caption, imageSrc });
         }
+
         closeModal('memory-modal');
         captionInput.value = '';
+        if (imageInput) imageInput.value = '';
+    }
+}
+
+function renderMemoryCard(caption, imageSrc) {
+    const grid = document.getElementById('memory-grid');
+    if (grid) {
+        const card = document.createElement('div');
+        card.className = 'memory-card';
+        card.innerHTML = `<img src="${imageSrc}" alt="Memory"><p>${escapeHtml(caption)}</p>`;
+        grid.appendChild(card);
     }
 }
 
@@ -320,33 +395,49 @@ function saveNote() {
 
     const text = noteInput.value;
     if (text) {
-        const list = document.getElementById('notes-list');
-        if (list) {
-            const card = document.createElement('div');
-            card.className = 'note-card';
-            card.innerHTML = `<p class="note-text">${escapeHtml(text)}</p><span class="note-date">Just Now</span>`;
-            list.appendChild(card);
-        }
+        const date = "Just Now";
+        renderNoteCard(text, date);
+        socket.emit('add_note', { text, date });
+
         closeModal('note-modal');
         noteInput.value = '';
     }
 }
 
+function renderNoteCard(text, date) {
+    const list = document.getElementById('notes-list');
+    if (list) {
+        const card = document.createElement('div');
+        card.className = 'note-card';
+        card.innerHTML = `<p class="note-text">${escapeHtml(text)}</p><span class="note-date">${date}</span>`;
+        list.appendChild(card);
+    }
+}
+
 function saveDate() {
     const titleInput = document.getElementById('date-title-input');
+    const timeInput = document.getElementById('date-time-input');
     if (!titleInput) return;
 
     const title = titleInput.value;
     if (title) {
-        const list = document.getElementById('dates-list');
-        if (list) {
-            const card = document.createElement('div');
-            card.className = 'date-card';
-            card.innerHTML = `<i class="fa-solid fa-heart date-icon"></i><div><h4>${escapeHtml(title)}</h4><p>Scheduled</p></div>`;
-            list.appendChild(card);
-        }
+        const scheduledTime = timeInput && timeInput.value ? timeInput.value : "Scheduled";
+        renderDateCard(title, scheduledTime);
+        socket.emit('add_date', { title, scheduledTime });
+
         closeModal('date-modal');
         titleInput.value = '';
+        if (timeInput) timeInput.value = '';
+    }
+}
+
+function renderDateCard(title, scheduledTime) {
+    const list = document.getElementById('dates-list');
+    if (list) {
+        const card = document.createElement('div');
+        card.className = 'date-card';
+        card.innerHTML = `<i class="fa-solid fa-heart date-icon"></i><div><h4>${escapeHtml(title)}</h4><p>${scheduledTime}</p></div>`;
+        list.appendChild(card);
     }
 }
 

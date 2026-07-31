@@ -12,14 +12,14 @@
     <!-- Emoji Mart -->
     <script src="https://cdn.jsdelivr.net/npm/emoji-mart@latest/dist/browser.js"></script>
 
-    <!-- Custom Stylesheet (Explicit Root Path) -->
+    <!-- Custom Stylesheet -->
     <link rel="stylesheet" href="/style.css">
 </head>
 
 <body>
 
-    <!-- Auth / Login Modal Overlay -->
-    <div id="auth-container" class="auth-overlay hidden">
+    <!-- Auth / Login Modal Overlay (Shown by default unless user is logged in) -->
+    <div id="auth-container" class="auth-overlay active">
         <div class="auth-box">
             <h2>BaeSpace</h2>
             <p id="auth-subtitle">Connect privately with your partner</p>
@@ -107,7 +107,7 @@
                         Add</button>
                 </div>
                 <div id="memory-grid" class="memory-grid-container">
-                    <!-- Cards will render here -->
+                    <!-- Memory cards will render here -->
                 </div>
             </section>
 
@@ -204,6 +204,8 @@
     </div>
 
     <!-- Modals -->
+
+    <!-- Add Memory Modal -->
     <div id="memory-modal" class="modal-overlay">
         <div class="modal-box">
             <h3>Add a Memory</h3>
@@ -216,6 +218,7 @@
         </div>
     </div>
 
+    <!-- Add Note Modal -->
     <div id="note-modal" class="modal-overlay">
         <div class="modal-box">
             <h3>Write a Love Note</h3>
@@ -227,6 +230,7 @@
         </div>
     </div>
 
+    <!-- Add Date Modal -->
     <div id="date-modal" class="modal-overlay">
         <div class="modal-box">
             <h3>Plan a Date</h3>
