@@ -35,7 +35,7 @@ socket.on('receive_message', (data) => {
     appendMessage(data.text, 'received', data.time, data.image);
 });
 
-// Real-Time Profile Listener (Sync Partner Changes)
+// Real-Time Profile Listener
 socket.on('receive_profile_update', (data) => {
     console.log('Profile update received from partner:', data);
 
@@ -52,7 +52,6 @@ socket.on('receive_profile_update', (data) => {
     if (data.anniversary) {
         const datePicker = document.getElementById('anniversary-picker');
         if (datePicker) datePicker.value = data.anniversary;
-        calculateDaysTogether(data.anniversary);
     }
 });
 
@@ -69,7 +68,7 @@ socket.on('receive_date', (data) => {
     renderDateCard(data.title, data.scheduledTime);
 });
 
-// Initialize Emoji Mart Picker & Local Anniversary Check
+// Initialize Emoji Mart Picker
 document.addEventListener('DOMContentLoaded', () => {
     try {
         const pickerOptions = {
@@ -83,12 +82,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (container) container.appendChild(picker);
     } catch (e) {
         console.log("Emoji picker ready.");
-    }
-
-    // Load saved anniversary date if available on page load
-    const datePicker = document.getElementById('anniversary-picker');
-    if (datePicker && datePicker.value) {
-        calculateDaysTogether(datePicker.value);
     }
 });
 
@@ -259,7 +252,7 @@ function syncProfileUpdate(updateData) {
     }
 }
 
-// Profile Customization & Days Counter
+// Profile Customization
 function setMood(emoji) {
     const moodHeader = document.getElementById('header-mood');
     if (moodHeader) moodHeader.textContent = emoji;
@@ -269,25 +262,7 @@ function setMood(emoji) {
 
 function saveAnniversary(event) {
     const anniversaryDate = event.target.value;
-    calculateDaysTogether(anniversaryDate);
     syncProfileUpdate({ anniversary: anniversaryDate });
-}
-
-// Calculate Days Together Counter
-function calculateDaysTogether(startDateStr) {
-    if (!startDateStr) return;
-
-    const startDate = new Date(startDateStr);
-    const today = new Date();
-
-    // Calculate difference in milliseconds and convert to days
-    const diffTime = Math.abs(today - startDate);
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-    const displayElement = document.getElementById('days-together-count');
-    if (displayElement) {
-        displayElement.textContent = diffDays;
-    }
 }
 
 function triggerAvatarUpload() {
