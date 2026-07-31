@@ -6,16 +6,16 @@ const path = require('path');
 const app = express();
 const server = http.createServer(app);
 
-// Socket.io setup with CORS and 10MB payload limit for profile images
+// Enable Socket.io with strict WebSockets fallback & CORS
 const io = new Server(server, {
     cors: {
         origin: "*",
         methods: ["GET", "POST"]
     },
+    transports: ['websocket', 'polling'],
     maxHttpBufferSize: 1e7
 });
 
-// Serve static files safely from root and public directories
 app.use(express.static(__dirname));
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -23,45 +23,57 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Real-time WebSockets with Dynamic Room Security
+// Store connected users per room to handle state sync
+const roomStates = {};
+
 io.on('connection', (socket) => {
-    console.log(`User connected: ${socket.id}`);
+    console.log(`[Socket Connected] ID: ${socket.id}`);
 
-    // Join isolated private room based on partner Pair Code
+    // Join room event
     socket.on('join_room', (data) => {
-        const roomId = data && data.roomId ? data.roomId.trim().toLowerCase() : 'secret-pair-123';
+        const roomId = (data && data.roomId) ? data.roomId.trim().toLowerCase() : 'secret-pair-123';
 
-        // Leave previous rooms
+        // Leave any existing rooms except its own ID
         socket.rooms.forEach(room => {
             if (room !== socket.id) socket.leave(room);
         });
 
         socket.join(roomId);
         socket.currentRoom = roomId;
-        console.log(`Socket ${socket.id} joined private room: ${roomId}`);
+        console.log(`[Room Join] Socket ${socket.id} joined room: ${roomId}`);
 
+        // Confirm room join back to sender
         socket.emit('room_joined', { roomId });
+
+        // If partner already has profile state in this room, sync it to the new user
+        if (roomStates[roomId]) {
+            socket.emit('receive_profile_update', roomStates[roomId]);
+        }
     });
 
-    // Relay messages ONLY within the specific room
+    // Real-time Chat Messaging
     socket.on('send_message', (data) => {
         const room = socket.currentRoom || 'secret-pair-123';
         socket.to(room).emit('receive_message', data);
     });
 
-    // Relay profile sync ONLY within the specific room
+    // Real-time Profile Updates (Sync & Save State)
     socket.on('update_profile', (data) => {
         const room = socket.currentRoom || 'secret-pair-123';
+
+        // Save latest state for room
+        roomStates[room] = { ...(roomStates[room] || {}), ...data };
+
+        // Broadcast update to partner in room
         socket.to(room).emit('receive_profile_update', data);
     });
 
     socket.on('disconnect', () => {
-        console.log(`User disconnected: ${socket.id}`);
+        console.log(`[Socket Disconnected] ID: ${socket.id}`);
     });
 });
 
-// Bind to Render's dynamic PORT
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
-    console.log(`BaeSpace server running on port ${PORT}`);
+    console.log(`BaeSpace server live on port ${PORT}`);
 });

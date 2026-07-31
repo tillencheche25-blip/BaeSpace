@@ -1,6 +1,9 @@
-// Initialize Socket.io Connection with fallbacks
+// Force WebSocket transport connection with automatic retries
 const socket = io({
-    transports: ['websocket', 'polling']
+    transports: ['websocket', 'polling'],
+    reconnection: true,
+    reconnectionAttempts: 10,
+    reconnectionDelay: 1000
 });
 
 // Global States
@@ -9,20 +12,22 @@ let isRecording = false;
 
 // Socket Connection & Automatic Room Sync
 socket.on('connect', () => {
-    console.log('Connected to server with Socket ID:', socket.id);
-
-    // Auto-join room stored in browser storage or fallback default
-    const pairCode = localStorage.getItem('bae_pair_code') || 'secret-pair-123';
-    socket.emit('join_room', { roomId: pairCode });
+    console.log('Connected to server! Socket ID:', socket.id);
+    joinCoupleRoom();
 });
 
 socket.on('room_joined', (data) => {
-    console.log(`Successfully joined private couple room: ${data.roomId}`);
+    console.log('Active in room:', data.roomId);
 });
 
 socket.on('disconnect', () => {
     console.log('Disconnected from server');
 });
+
+function joinCoupleRoom() {
+    const pairCode = localStorage.getItem('bae_pair_code') || 'secret-pair-123';
+    socket.emit('join_room', { roomId: pairCode });
+}
 
 // Real-Time Chat Listener
 socket.on('receive_message', (data) => {
@@ -233,17 +238,28 @@ function initiateCall(type) {
     alert(`Starting ${type} call with your partner...`);
 }
 
+// Helper Function for Profile Socket Transmission
+function syncProfileUpdate(updateData) {
+    if (socket.connected) {
+        socket.emit('update_profile', updateData);
+    } else {
+        console.warn('Socket not connected, retrying socket connection...');
+        socket.connect();
+        setTimeout(() => socket.emit('update_profile', updateData), 500);
+    }
+}
+
 // Profile Customization & Real-Time Sync
 function setMood(emoji) {
     const moodHeader = document.getElementById('header-mood');
     if (moodHeader) moodHeader.textContent = emoji;
 
-    socket.emit('update_profile', { mood: emoji });
+    syncProfileUpdate({ mood: emoji });
 }
 
 function saveAnniversary(event) {
     const anniversaryDate = event.target.value;
-    socket.emit('update_profile', { anniversary: anniversaryDate });
+    syncProfileUpdate({ anniversary: anniversaryDate });
 }
 
 function triggerAvatarUpload() {
@@ -263,7 +279,7 @@ function uploadCustomAvatar(event) {
             if (headerAvatar) headerAvatar.src = avatarData;
             if (profileAvatar) profileAvatar.src = avatarData;
 
-            socket.emit('update_profile', { avatar: avatarData });
+            syncProfileUpdate({ avatar: avatarData });
         };
         reader.readAsDataURL(file);
     }
