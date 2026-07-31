@@ -681,9 +681,10 @@
                     <button class="btn-icon" id="mic-btn" onclick="toggleVoiceRecord()">🎙️</button>
                     <input type="file" id="file-input" style="display: none;" accept="image/*"
                         onchange="uploadImage(this)">
-                    <input type="text" id="msg-input" placeholder="Type a message" oninput="handleTyping()"
-                        onkeypress="if(event.key==='Enter') sendMessage()">
-                    <button class="btn-send" onclick="sendMessage()">➤</button>
+
+                    <!-- Cleaned Input: app.js listens for Keydown & Click safely -->
+                    <input type="text" id="msg-input" placeholder="Type a message">
+                    <button class="btn-send" id="send-btn">➤</button>
                 </div>
             </div>
 
@@ -826,8 +827,10 @@
         window.addEventListener('load', () => {
             setTimeout(() => {
                 const splash = document.getElementById('splash-screen');
-                splash.style.opacity = '0';
-                setTimeout(() => splash.style.display = 'none', 500);
+                if (splash) {
+                    splash.style.opacity = '0';
+                    setTimeout(() => splash.style.display = 'none', 500);
+                }
             }, 1200);
         });
 
@@ -836,20 +839,25 @@
             document.querySelectorAll('.screen-view').forEach(s => s.classList.remove('active'));
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
 
-            document.getElementById(screenId).classList.add('active');
-            navEl.classList.add('active');
+            const targetScreen = document.getElementById(screenId);
+            if (targetScreen) targetScreen.classList.add('active');
+            if (navEl) navEl.classList.add('active');
 
             if (screenId === 'memories-screen') {
-                fetchMemories();
-                document.getElementById('badge-memories').style.display = 'none';
+                if (typeof fetchMemories === 'function') fetchMemories();
+                const badge = document.getElementById('badge-memories');
+                if (badge) badge.style.display = 'none';
             }
             if (screenId === 'notes-screen') {
-                fetchNotes();
-                document.getElementById('badge-notes').style.display = 'none';
+                if (typeof fetchNotes === 'function') fetchNotes();
+                const badge = document.getElementById('badge-notes');
+                if (badge) badge.style.display = 'none';
             }
-            if (screenId === 'dates-screen') fetchDates();
+            if (screenId === 'dates-screen') {
+                if (typeof fetchDates === 'function') fetchDates();
+            }
         }
     </script>
 </body>
 
-</html>
+</html>// ==========================================

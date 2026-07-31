@@ -1,323 +1,130 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const Database = require('better-sqlite3');
 const path = require('path');
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
+const multer = require('multer');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
 const PORT = process.env.PORT || 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'baespace_secret_key_123';
 
-// Middleware
-app.use(express.json({ limit: '25mb' }));
-app.use(express.urlencoded({ limit: '25mb', extended: true }));
+// Storage
+let users = [];
+let chatHistory = {}; // Format: { pairCode: [ messages ] }
+let memories = {};
+let notes = {};
+let dates = {};
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Database Initialization
-const db = new Database('./baespace.db');
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, 'uploads/'),
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, uniqueSuffix + path.extname(file.originalname));
+    }
+});
+const upload = multer({ storage: storage });
 
-// Create Database Tables
-db.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE,
-        password TEXT,
-        pairCode TEXT,
-        avatar TEXT DEFAULT '👤'
-    );
-    CREATE TABLE IF NOT EXISTS memories (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        pairCode TEXT,
-        title TEXT,
-        imageUrl TEXT,
-        caption TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-    CREATE TABLE IF NOT EXISTS notes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        pairCode TEXT,
-        author TEXT,
-        content TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-    CREATE TABLE IF NOT EXISTS dates (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        pairCode TEXT,
-        title TEXT,
-        eventDate TEXT
-    );
-    CREATE TABLE IF NOT EXISTS moods (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE,
-        mood TEXT,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-    CREATE TABLE IF NOT EXISTS anniversaries (
-        pairCode TEXT PRIMARY KEY,
-        startDate TEXT
-    );
-`);
+function getVerb(name) {
+    if (!name) return 'is';
+    const lower = name.toLowerCase();
+    return (lower.includes(' and ') || lower.includes('&')) ? 'are' : 'is';
+}
 
-// Ensure avatar column exists if updating existing DB
-try {
-    db.exec(`ALTER TABLE users ADD COLUMN avatar TEXT DEFAULT '👤'`);
-} catch (e) { }
-
-// ================= API ENDPOINTS =================
-
-// Signup
-app.post('/api/auth/signup', async (req, res) => {
+// REST ENDPOINTS
+app.post('/api/auth/register', (req, res) => {
     const { username, password, pairCode } = req.body;
-
     if (!username || !password || !pairCode) {
-        return res.status(400).json({ error: 'All fields are required.' });
+        return res.status(400).json({ message: 'All fields are required.' });
     }
+    const existingUser = users.find(u => u.username === username);
+    if (existingUser) return res.status(400).json({ message: 'Username exists.' });
 
-    const cleanPairCode = String(pairCode).trim();
-
-    try {
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const stmt = db.prepare(`INSERT INTO users (username, password, pairCode) VALUES (?, ?, ?)`);
-        const info = stmt.run(username, hashedPassword, cleanPairCode);
-
-        const token = jwt.sign({ id: info.lastInsertRowid, username, pairCode: cleanPairCode }, JWT_SECRET);
-        res.json({ token, username, pairCode: cleanPairCode, avatar: '👤' });
-    } catch (err) {
-        if (err.message && err.message.includes('UNIQUE constraint failed')) {
-            return res.status(400).json({ error: 'Username already exists.' });
-        }
-        res.status(500).json({ error: 'Database error.' });
-    }
+    const newUser = { username, password, pairCode, avatar: null, anniversary: null };
+    users.push(newUser);
+    return res.status(200).json({ user: newUser });
 });
 
-// Login
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', (req, res) => {
     const { username, password } = req.body;
-
-    if (!username || !password) {
-        return res.status(400).json({ error: 'Username and password required.' });
-    }
-
-    try {
-        const user = db.prepare(`SELECT * FROM users WHERE username = ?`).get(username);
-        if (!user) {
-            return res.status(400).json({ error: 'Invalid credentials.' });
-        }
-
-        const match = await bcrypt.compare(password, user.password);
-        if (!match) {
-            return res.status(400).json({ error: 'Invalid credentials.' });
-        }
-
-        const cleanPairCode = String(user.pairCode).trim();
-        const token = jwt.sign({ id: user.id, username: user.username, pairCode: cleanPairCode }, JWT_SECRET);
-        res.json({ token, username: user.username, pairCode: cleanPairCode, avatar: user.avatar || '👤' });
-    } catch (err) {
-        res.status(500).json({ error: 'Database error.' });
-    }
+    const user = users.find(u => u.username === username && u.password === password);
+    if (!user) return res.status(401).json({ message: 'Invalid credentials.' });
+    return res.status(200).json({ user });
 });
 
-// Get User Avatar
-app.get('/api/user/avatar/:username', (req, res) => {
-    const { username } = req.params;
-    try {
-        const user = db.prepare(`SELECT avatar FROM users WHERE username = ?`).get(username);
-        res.json({ avatar: user ? user.avatar : '👤' });
-    } catch (err) {
-        res.status(500).json({ error: 'Database error.' });
-    }
+app.get('/api/chat/:pairCode', (req, res) => {
+    const { pairCode } = req.params;
+    // Filter out any accidental system messages from memory array
+    const history = (chatHistory[pairCode] || []).filter(msg => msg.type !== 'system');
+    res.json(history);
 });
 
-// Update User Avatar
-app.post('/api/user/avatar', (req, res) => {
-    const { username, avatar } = req.body;
-    try {
-        const stmt = db.prepare(`UPDATE users SET avatar = ? WHERE username = ?`);
-        stmt.run(avatar, username);
-        res.json({ success: true, avatar });
-    } catch (err) {
-        res.status(500).json({ error: 'Database error.' });
+app.post('/api/chat/upload', upload.single('file'), (req, res) => {
+    const { pairCode, sender, type } = req.body;
+    if (!req.file || !pairCode || !sender) {
+        return res.status(400).json({ message: 'Missing parameters.' });
     }
+    const fileUrl = `/uploads/${req.file.filename}`;
+    const messageData = {
+        id: Date.now().toString(),
+        pairCode,
+        sender,
+        type,
+        fileUrl,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+    if (!chatHistory[pairCode]) chatHistory[pairCode] = [];
+    chatHistory[pairCode].push(messageData);
+    res.json({ success: true, message: messageData });
 });
 
-// Get Memories
-app.get('/api/memories/:pairCode', (req, res) => {
-    const pairCode = String(req.params.pairCode).trim();
-    try {
-        const rows = db.prepare(`SELECT * FROM memories WHERE pairCode = ? ORDER BY id DESC`).all(pairCode);
-        res.json(rows || []);
-    } catch (err) {
-        res.status(500).json({ error: 'Database error.' });
-    }
-});
-
-// Add Memory
-app.post('/api/memories', (req, res) => {
-    const { pairCode, title, imageUrl, caption } = req.body;
-    const cleanPairCode = String(pairCode).trim();
-    try {
-        const stmt = db.prepare(`INSERT INTO memories (pairCode, title, imageUrl, caption) VALUES (?, ?, ?, ?)`);
-        const info = stmt.run(cleanPairCode, title, imageUrl, caption);
-        res.json({ id: info.lastInsertRowid, pairCode: cleanPairCode, title, imageUrl, caption });
-    } catch (err) {
-        res.status(500).json({ error: 'Database error.' });
-    }
-});
-
-// Get Love Notes
-app.get('/api/notes/:pairCode', (req, res) => {
-    const pairCode = String(req.params.pairCode).trim();
-    try {
-        const rows = db.prepare(`SELECT * FROM notes WHERE pairCode = ? ORDER BY id DESC`).all(pairCode);
-        res.json(rows || []);
-    } catch (err) {
-        res.status(500).json({ error: 'Database error.' });
-    }
-});
-
-// Add Love Note
-app.post('/api/notes', (req, res) => {
-    const { pairCode, author, content } = req.body;
-    const cleanPairCode = String(pairCode).trim();
-    try {
-        const stmt = db.prepare(`INSERT INTO notes (pairCode, author, content) VALUES (?, ?, ?)`);
-        const info = stmt.run(cleanPairCode, author, content);
-        res.json({ id: info.lastInsertRowid, pairCode: cleanPairCode, author, content });
-    } catch (err) {
-        res.status(500).json({ error: 'Database error.' });
-    }
-});
-
-// Get Important Dates
-app.get('/api/dates/:pairCode', (req, res) => {
-    const pairCode = String(req.params.pairCode).trim();
-    try {
-        const rows = db.prepare(`SELECT * FROM dates WHERE pairCode = ? ORDER BY eventDate ASC`).all(pairCode);
-        res.json(rows || []);
-    } catch (err) {
-        res.status(500).json({ error: 'Database error.' });
-    }
-});
-
-// Add Important Date
-app.post('/api/dates', (req, res) => {
-    const { pairCode, title, eventDate } = req.body;
-    const cleanPairCode = String(pairCode).trim();
-    try {
-        const stmt = db.prepare(`INSERT INTO dates (pairCode, title, eventDate) VALUES (?, ?, ?)`);
-        const info = stmt.run(cleanPairCode, title, eventDate);
-        res.json({ id: info.lastInsertRowid, pairCode: cleanPairCode, title, eventDate });
-    } catch (err) {
-        res.status(500).json({ error: 'Database error.' });
-    }
-});
-
-// Get Relationship Anniversary Date
-app.get('/api/anniversary/:pairCode', (req, res) => {
-    const pairCode = String(req.params.pairCode).trim();
-    try {
-        const row = db.prepare(`SELECT startDate FROM anniversaries WHERE pairCode = ?`).get(pairCode);
-        res.json({ startDate: row ? row.startDate : null });
-    } catch (err) {
-        res.status(500).json({ error: 'Database error.' });
-    }
-});
-
-// Save/Update Relationship Anniversary Date
-app.post('/api/anniversary', (req, res) => {
-    const { pairCode, startDate } = req.body;
-    const cleanPairCode = String(pairCode).trim();
-    try {
-        const stmt = db.prepare(`
-            INSERT INTO anniversaries (pairCode, startDate) VALUES (?, ?)
-            ON CONFLICT(pairCode) DO UPDATE SET startDate = ?
-        `);
-        stmt.run(cleanPairCode, startDate, startDate);
-        res.json({ success: true, startDate });
-    } catch (err) {
-        res.status(500).json({ error: 'Database error.' });
-    }
-});
-
-// Update or Set Mood
-app.post('/api/mood', (req, res) => {
-    const { username, mood } = req.body;
-    try {
-        const stmt = db.prepare(`
-            INSERT INTO moods (username, mood) VALUES (?, ?) 
-            ON CONFLICT(username) DO UPDATE SET mood = ?, updated_at = CURRENT_TIMESTAMP
-        `);
-        stmt.run(username, mood, mood);
-        res.json({ success: true, mood });
-    } catch (err) {
-        res.status(500).json({ error: 'Database error.' });
-    }
-});
-
-// ================= SOCKET.IO REAL-TIME EVENTS =================
-
+// SOCKET LOGIC
 io.on('connection', (socket) => {
-    console.log('User connected:', socket.id);
+    socket.on('join-room', ({ pairCode, username }) => {
+        socket.join(pairCode);
+        socket.pairCode = pairCode;
+        socket.username = username;
 
-    // Join room and explicitly acknowledge back to client
-    socket.on('join_room', (data) => {
-        const roomStr = String(data.room).trim();
-        socket.join(roomStr);
-        console.log(`Socket ${socket.id} joined room: ${roomStr}`);
-
-        // Notify partner that user connected
-        socket.to(roomStr).emit('user_joined', {
-            message: `${data.username} is now online 💕`
+        const verb = getVerb(username);
+        // Live alert ONLY to OTHER clients (DO NOT store in chatHistory)
+        socket.to(pairCode).emit('receive-message', {
+            type: 'system',
+            text: `${username} ${verb} now online 💕`,
+            pairCode
         });
     });
 
-    // Broadcast messages to EVERYONE in the room (including sender)
-    socket.on('send_message', (data) => {
-        const roomStr = String(data.room).trim();
-        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    socket.on('send-message', (data) => {
+        if (!data.pairCode) return;
+        data.id = data.id || Date.now().toString();
 
-        io.to(roomStr).emit('receive_message', {
-            ...data,
-            time
-        });
-    });
+        if (!chatHistory[data.pairCode]) chatHistory[data.pairCode] = [];
 
-    socket.on('send_reaction', (data) => {
-        const roomStr = String(data.room).trim();
-        io.to(roomStr).emit('receive_reaction', data);
-    });
+        // Strict guard: NEVER store system messages in history
+        if (data.type !== 'system') {
+            chatHistory[data.pairCode].push(data);
+        }
 
-    socket.on('typing', (data) => {
-        const roomStr = String(data.room).trim();
-        socket.to(roomStr).emit('display_typing', data);
-    });
-
-    socket.on('stop_typing', (data) => {
-        const roomStr = String(data.room).trim();
-        socket.to(roomStr).emit('hide_typing');
-    });
-
-    socket.on('new_activity_badge', (data) => {
-        const roomStr = String(data.room).trim();
-        socket.to(roomStr).emit('show_badge', data);
-    });
-
-    socket.on('update_anniversary', (data) => {
-        const roomStr = String(data.room).trim();
-        io.to(roomStr).emit('anniversary_updated', data);
-    });
-
-    socket.on('profile_avatar_updated', (data) => {
-        const roomStr = String(data.room).trim();
-        socket.to(roomStr).emit('partner_avatar_changed', data);
+        // Broadcast message to everyone in the room
+        io.to(data.pairCode).emit('receive-message', data);
     });
 
     socket.on('disconnect', () => {
-        console.log('User disconnected:', socket.id);
+        if (socket.pairCode && socket.username) {
+            const verb = getVerb(socket.username);
+            socket.to(socket.pairCode).emit('receive-message', {
+                type: 'system',
+                text: `${socket.username} ${verb} now offline 💔`,
+                pairCode: socket.pairCode
+            });
+        }
     });
 });
+
+server.listen(PORT, () => console.log(`Server listening on ${PORT}`));
