@@ -1,4 +1,4 @@
-// Initialize Socket.io Connection with fallback transports
+// Initialize Socket.io Connection with fallbacks
 const socket = io({
     transports: ['websocket', 'polling']
 });
@@ -7,32 +7,40 @@ const socket = io({
 let isLoginMode = true;
 let isRecording = false;
 
-// Socket Connection Debugging & Room Handlers
+// Socket Connection & Automatic Room Sync
 socket.on('connect', () => {
     console.log('Connected to server with Socket ID:', socket.id);
+
+    // Auto-join room stored in browser storage or fallback default
+    const pairCode = localStorage.getItem('bae_pair_code') || 'secret-pair-123';
+    socket.emit('join_room', { roomId: pairCode });
+});
+
+socket.on('room_joined', (data) => {
+    console.log(`Successfully joined private couple room: ${data.roomId}`);
 });
 
 socket.on('disconnect', () => {
     console.log('Disconnected from server');
 });
 
-// Real-Time Message Listener
+// Real-Time Chat Listener
 socket.on('receive_message', (data) => {
     console.log('Message received from partner:', data);
     appendMessage(data.text, 'received', data.time, data.image);
 });
 
-// Real-Time Profile Listener (Sync from Partner)
+// Real-Time Profile Listener (Partner Sync)
 socket.on('receive_profile_update', (data) => {
     console.log('Profile update received from partner:', data);
 
-    // Update Partner's Mood in Header
+    // Sync Partner's Mood
     if (data.mood) {
         const moodHeader = document.getElementById('header-mood');
         if (moodHeader) moodHeader.textContent = data.mood;
     }
 
-    // Update Partner's Avatar in Header
+    // Sync Partner's Avatar
     if (data.avatar) {
         const headerAvatar = document.getElementById('header-avatar');
         if (headerAvatar) headerAvatar.src = data.avatar;
@@ -62,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Auth Flow Handlers
+// Auth Flow & Room Allocation
 function toggleAuthMode(event) {
     if (event) event.preventDefault();
     isLoginMode = !isLoginMode;
@@ -93,6 +101,16 @@ function toggleAuthMode(event) {
 
 function handleAuth(event) {
     event.preventDefault();
+
+    const pairInput = document.getElementById('auth-pair-code');
+    const pairCode = (pairInput && pairInput.value.trim()) ? pairInput.value.trim() : 'secret-pair-123';
+
+    // Store pair code in local storage
+    localStorage.setItem('bae_pair_code', pairCode);
+
+    // Join room
+    socket.emit('join_room', { roomId: pairCode });
+
     const authContainer = document.getElementById('auth-container');
     if (authContainer) authContainer.classList.add('hidden');
 }
@@ -108,7 +126,7 @@ function deleteAccount() {
     }
 }
 
-// Navigation Tab Switcher
+// Navigation View Switcher
 function switchTab(tabName) {
     const screens = document.querySelectorAll('.screen-view');
     screens.forEach(screen => screen.classList.remove('active'));
@@ -151,10 +169,10 @@ function sendMessage() {
 
     const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    // 1. Render message locally on your screen
+    // 1. Render message locally
     appendMessage(text, 'sent', time);
 
-    // 2. Emit real-time message via socket server
+    // 2. Broadcast via socket
     socket.emit('send_message', { text, time });
 
     input.value = '';
@@ -169,10 +187,7 @@ function uploadImage(event) {
         reader.onload = function (e) {
             const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-            // Render locally
             appendMessage('', 'sent', time, e.target.result);
-
-            // Broadcast image to partner
             socket.emit('send_message', { text: '', time, image: e.target.result });
         };
         reader.readAsDataURL(file);
@@ -218,19 +233,16 @@ function initiateCall(type) {
     alert(`Starting ${type} call with your partner...`);
 }
 
-// Profile Customizations with Real-Time Socket Broadcast
+// Profile Customization & Real-Time Sync
 function setMood(emoji) {
     const moodHeader = document.getElementById('header-mood');
     if (moodHeader) moodHeader.textContent = emoji;
 
-    // Broadcast mood to partner
     socket.emit('update_profile', { mood: emoji });
 }
 
 function saveAnniversary(event) {
     const anniversaryDate = event.target.value;
-
-    // Broadcast anniversary date to partner
     socket.emit('update_profile', { anniversary: anniversaryDate });
 }
 
@@ -251,7 +263,6 @@ function uploadCustomAvatar(event) {
             if (headerAvatar) headerAvatar.src = avatarData;
             if (profileAvatar) profileAvatar.src = avatarData;
 
-            // Broadcast avatar image to partner
             socket.emit('update_profile', { avatar: avatarData });
         };
         reader.readAsDataURL(file);
