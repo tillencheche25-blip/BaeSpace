@@ -15,6 +15,9 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
+    <!-- Socket.io Client -->
+    <script src="/socket.io/socket.io.js"></script>
+
     <!-- Emoji Mart Integration -->
     <script src="https://cdn.jsdelivr.net/npm/emoji-mart@latest/dist/browser.js"></script>
 </head>
@@ -49,7 +52,8 @@
         <header class="chat-header">
             <div class="user-info">
                 <div class="avatar-container" onclick="switchTab('profile')">
-                    <img id="header-avatar" src="https://via.placeholder.com/40" alt="Avatar" class="avatar">
+                    <img id="header-avatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=Bae" alt="Avatar"
+                        class="avatar">
                     <span id="header-mood" class="mood-badge">😊</span>
                 </div>
                 <div class="user-details">
@@ -70,16 +74,7 @@
             <section id="chat-screen" class="screen-view active">
                 <div class="messages-container" id="messages-container">
                     <div class="date-divider">Today</div>
-
-                    <div class="msg received">
-                        <p>Hey handsome! Miss you ❤️</p>
-                        <span class="timestamp">10:14 AM</span>
-                    </div>
-
-                    <div class="msg sent">
-                        <p>Miss you more babe! Can't wait for dinner tonight 🥰</p>
-                        <span class="timestamp">10:15 AM <i class="fa-solid fa-check-double read-receipt"></i></span>
-                    </div>
+                    <!-- Real-time messages will load dynamically here -->
                 </div>
 
                 <!-- Emoji Picker Container -->
@@ -110,8 +105,8 @@
                 </div>
                 <div class="memory-grid" id="memory-grid">
                     <div class="memory-card">
-                        <img src="https://via.placeholder.com/150" alt="Memory">
-                        <p>Beach Trip 2025 🌊</p>
+                        <img src="https://api.dicebear.com/7.x/shapes/svg?seed=Memory1" alt="Memory">
+                        <p>Beach Trip 🌊</p>
                     </div>
                 </div>
             </section>
@@ -152,7 +147,7 @@
             <!-- 5. PROFILE / SETTINGS SCREEN -->
             <section id="profile-screen" class="screen-view">
                 <div class="profile-header">
-                    <img id="profile-avatar" src="https://via.placeholder.com/80" alt="Profile Avatar"
+                    <img id="profile-avatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=Bae" alt="Profile Avatar"
                         class="profile-avatar-lg">
                     <h3 id="profile-name">My Account</h3>
                     <p id="pair-status-badge" class="badge">Paired with Babe ❤️</p>
@@ -203,7 +198,7 @@
                 <span>Notes</span>
             </button>
             <button class="nav-btn" onclick="switchTab('dates')">
-                <i class="fa-solid fa-calendar-heart"></i>
+                <i class="fa-solid fa-calendar-days"></i>
                 <span>Dates</span>
             </button>
             <button class="nav-btn" onclick="switchTab('profile')">
@@ -213,8 +208,7 @@
         </nav>
     </div>
 
-    <!-- Modals for Features -->
-    <!-- Add Memory Modal -->
+    <!-- Modals -->
     <div id="memory-modal" class="modal">
         <div class="modal-content">
             <h3>Add New Memory</h3>
@@ -227,7 +221,6 @@
         </div>
     </div>
 
-    <!-- Add Note Modal -->
     <div id="note-modal" class="modal">
         <div class="modal-content">
             <h3>Add Love Note</h3>
@@ -239,7 +232,6 @@
         </div>
     </div>
 
-    <!-- Add Date Modal -->
     <div id="date-modal" class="modal">
         <div class="modal-content">
             <h3>Plan a Date</h3>
@@ -252,7 +244,6 @@
         </div>
     </div>
 
-    <!-- App Logic -->
     <script src="app.js"></script>
 </body>
 

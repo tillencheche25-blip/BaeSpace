@@ -1,8 +1,16 @@
-// Global State Tracker
+// Initialize Socket.io Connection
+const socket = io();
+
+// Global States
 let isLoginMode = true;
 let isRecording = false;
 
-// 1. Initialize Emoji Mart Picker
+// Socket Event Listener for Incoming Real-Time Messages
+socket.on('receive_message', (data) => {
+    appendMessage(data.text, 'received', data.time, data.image);
+});
+
+// Initialize Emoji Mart Picker
 document.addEventListener('DOMContentLoaded', () => {
     try {
         const pickerOptions = {
@@ -14,11 +22,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const picker = new EmojiMart.Picker(pickerOptions);
         document.getElementById('emoji-picker-container').appendChild(picker);
     } catch (e) {
-        console.log("Emoji Mart initialized lazily or offline mode.");
+        console.log("Emoji picker ready.");
     }
 });
 
-// 2. Auth Flow Toggle
+// Auth Flow Handlers
 function toggleAuthMode(event) {
     if (event) event.preventDefault();
     isLoginMode = !isLoginMode;
@@ -48,7 +56,6 @@ function toggleAuthMode(event) {
 
 function handleAuth(event) {
     event.preventDefault();
-    // Hide auth screen cleanly using the .hidden class
     document.getElementById('auth-container').classList.add('hidden');
 }
 
@@ -57,33 +64,29 @@ function logout() {
 }
 
 function deleteAccount() {
-    if (confirm("Are you sure you want to delete your account? This action cannot be undone.")) {
+    if (confirm("Are you sure you want to delete your account?")) {
         logout();
     }
 }
 
-// 3. Tab Switching Logic
+// Navigation Tab Switcher
 function switchTab(tabName) {
-    // Hide all screens
     const screens = document.querySelectorAll('.screen-view');
     screens.forEach(screen => screen.classList.remove('active'));
 
-    // Remove active state from nav buttons
     const navBtns = document.querySelectorAll('.nav-btn');
     navBtns.forEach(btn => btn.classList.remove('active'));
 
-    // Show target screen
     const targetScreen = document.getElementById(`${tabName}-screen`);
     if (targetScreen) targetScreen.classList.add('active');
 
-    // Highlight nav item
     const activeNavIndex = ['chat', 'memories', 'notes', 'dates', 'profile'].indexOf(tabName);
     if (activeNavIndex !== -1 && navBtns[activeNavIndex]) {
         navBtns[activeNavIndex].classList.add('active');
     }
 }
 
-// 4. Chat & Messaging Actions
+// Real-Time Messaging Functions
 function toggleEmojiPicker() {
     const container = document.getElementById('emoji-picker-container');
     container.classList.toggle('emoji-picker-hidden');
@@ -104,18 +107,15 @@ function sendMessage() {
     const text = input.value.trim();
     if (!text) return;
 
-    const msgContainer = document.getElementById('messages-container');
-    const msgElement = document.createElement('div');
-    msgElement.className = 'msg sent';
-
     const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    msgElement.innerHTML = `<p>${escapeHtml(text)}</p><span class="timestamp">${time} <i class="fa-solid fa-check"></i></span>`;
 
-    msgContainer.appendChild(msgElement);
+    // 1. Render message locally on your screen
+    appendMessage(text, 'sent', time);
+
+    // 2. Emit real-time message via socket server
+    socket.emit('send_message', { text, time });
+
     input.value = '';
-    msgContainer.scrollTop = msgContainer.scrollHeight;
-
-    // Hide Emoji Picker if open
     document.getElementById('emoji-picker-container').classList.add('emoji-picker-hidden');
 }
 
@@ -124,27 +124,48 @@ function uploadImage(event) {
     if (file) {
         const reader = new FileReader();
         reader.onload = function (e) {
-            const msgContainer = document.getElementById('messages-container');
-            const msgElement = document.createElement('div');
-            msgElement.className = 'msg sent';
             const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-            msgElement.innerHTML = `<img src="${e.target.result}" alt="Uploaded image"><span class="timestamp">${time}</span>`;
-            msgContainer.appendChild(msgElement);
-            msgContainer.scrollTop = msgContainer.scrollHeight;
+            // Render locally
+            appendMessage('', 'sent', time, e.target.result);
+
+            // Broadcast image to partner
+            socket.emit('send_message', { text: '', time, image: e.target.result });
         };
         reader.readAsDataURL(file);
     }
+}
+
+// Helper to Append Messages Cleanly
+function appendMessage(text, type, time, imageSrc = null) {
+    const msgContainer = document.getElementById('messages-container');
+    const msgElement = document.createElement('div');
+    msgElement.className = `msg ${type}`;
+
+    const checkmark = type === 'sent' ? ' <i class="fa-solid fa-check-double read-receipt"></i>' : '';
+    let content = '';
+
+    if (imageSrc) {
+        content += `<img src="${imageSrc}" alt="Sent image">`;
+    }
+    if (text) {
+        content += `<p>${escapeHtml(text)}</p>`;
+    }
+    content += `<span class="timestamp">${time}${checkmark}</span>`;
+
+    msgElement.innerHTML = content;
+    msgContainer.appendChild(msgElement);
+    msgContainer.scrollTop = msgContainer.scrollHeight;
 }
 
 function toggleVoiceRecord() {
     const micBtn = document.getElementById('mic-btn');
     isRecording = !isRecording;
     if (isRecording) {
-        micBtn.style.color = '#ea4335'; // Red color when recording
+        micBtn.style.color = '#ea4335';
     } else {
         micBtn.style.color = '#8696a0';
-        alert("Voice note recording saved!");
+        alert("Voice note feature processing...");
     }
 }
 
@@ -152,7 +173,7 @@ function initiateCall(type) {
     alert(`Starting ${type} call with your partner...`);
 }
 
-// 5. Profile & Mood Customization
+// Profile Customizations
 function setMood(emoji) {
     document.getElementById('header-mood').textContent = emoji;
     alert(`Mood updated to ${emoji}`);
@@ -178,7 +199,7 @@ function uploadCustomAvatar(event) {
     }
 }
 
-// 6. Modal Functions
+// Modals
 function openModal(id) {
     document.getElementById(id).classList.add('active');
 }
@@ -193,7 +214,7 @@ function saveMemory() {
         const grid = document.getElementById('memory-grid');
         const card = document.createElement('div');
         card.className = 'memory-card';
-        card.innerHTML = `<img src="https://via.placeholder.com/150" alt="Memory"><p>${escapeHtml(caption)}</p>`;
+        card.innerHTML = `<img src="https://api.dicebear.com/7.x/shapes/svg?seed=${encodeURIComponent(caption)}" alt="Memory"><p>${escapeHtml(caption)}</p>`;
         grid.appendChild(card);
         closeModal('memory-modal');
         document.getElementById('memory-caption-input').value = '';
@@ -226,7 +247,6 @@ function saveDate() {
     }
 }
 
-// Helper to sanitize inputs
 function escapeHtml(text) {
     return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
