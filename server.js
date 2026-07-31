@@ -1,164 +1,128 @@
 const express = require('express');
+const mongoose = require('mongoose');
+const path = require('path');
 const http = require('http');
 const { Server } = require('socket.io');
-const path = require('path');
-const multer = require('multer');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
 const PORT = process.env.PORT || 3000;
+const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://admin:Smalley254@cluster0.nuha0yj.mongodb.net/baespace?appName=Cluster0';
 
-// Storage
-let users = [];
-let chatHistory = {}; // Format: { pairCode: [ messages ] }
-let memories = {};
-let notes = {};
-let dates = {};
-
+// Middleware
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, 'uploads/'),
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, uniqueSuffix + path.extname(file.originalname));
-    }
-});
-const upload = multer({ storage: storage });
+// Database Connection
+mongoose.connect(MONGO_URI)
+    .then(() => console.log('Connected to MongoDB Atlas'))
+    .catch(err => console.error('MongoDB connection error:', err));
 
-function getVerb(name) {
-    if (!name) return 'is';
-    const lower = name.toLowerCase();
-    return (lower.includes(' and ') || lower.includes('&')) ? 'are' : 'is';
-}
-
-// --- AUTH ENDPOINTS ---
-
-app.post('/api/auth/register', (req, res) => {
-    const { username, password, pairCode } = req.body;
-    if (!username || !password || !pairCode) {
-        return res.status(400).json({ message: 'All fields are required.' });
-    }
-
-    const existingUser = users.find(u => u.username.toLowerCase() === username.toLowerCase());
-    if (existingUser) {
-        return res.status(400).json({ message: 'Username already taken.' });
-    }
-
-    // RESTRICTION: Limit room to a maximum of 2 people
-    const existingRoomUsers = users.filter(u => u.pairCode === pairCode);
-    if (existingRoomUsers.length >= 2) {
-        return res.status(403).json({ message: 'This room is full! Maximum of 2 people per room code.' });
-    }
-
-    const newUser = { username, password, pairCode, avatar: null, anniversary: null };
-    users.push(newUser);
-    return res.status(200).json({ user: newUser });
+// User Schema
+const userSchema = new mongoose.Schema({
+    username: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+    pairCode: { type: String, required: true },
+    avatar: { type: String, default: '💬' },
+    mood: { type: String, default: '🥰 Happy & Loving' },
+    anniversary: { type: String, default: '' }
 });
 
-app.post('/api/auth/login', (req, res) => {
-    const { username, password } = req.body;
-    const user = users.find(u => u.username.toLowerCase() === username.toLowerCase() && u.password === password);
+const User = mongoose.model('User', userSchema);
 
-    if (!user) {
-        return res.status(401).json({ message: 'Invalid username or password.' });
+// Memory / Note / Date Schemas
+const memorySchema = new mongoose.Schema({ pairCode: String, title: String, caption: String, image: String, date: { type: Date, default: Date.now } });
+const noteSchema = new mongoose.Schema({ pairCode: String, sender: String, content: String, date: { type: Date, default: Date.now } });
+const dateSchema = new mongoose.Schema({ pairCode: String, title: String, eventDate: String });
+
+const Memory = mongoose.model('Memory', memorySchema);
+const Note = mongoose.model('Note', noteSchema);
+const EventDate = mongoose.model('Date', dateSchema);
+
+// ================= AUTH ROUTES ================= //
+
+// POST /api/register
+app.post('/api/register', async (req, res) => {
+    try {
+        const { username, password, pairCode } = req.body;
+
+        if (!username || !password || !pairCode) {
+            return res.status(400).json({ message: 'All fields are required.' });
+        }
+
+        const existingUser = await User.findOne({ username });
+        if (existingUser) {
+            return res.status(400).json({ message: 'Username already taken.' });
+        }
+
+        const newUser = new User({ username, password, pairCode });
+        await newUser.save();
+
+        res.status(201).json({ message: 'Registration successful!', user: newUser });
+    } catch (err) {
+        console.error('Register Error:', err);
+        res.status(500).json({ message: 'Server error during registration.' });
     }
-    return res.status(200).json({ user });
 });
 
-// --- PERMANENT ACCOUNT DELETION ---
+// POST /api/login
+app.post('/api/login', async (req, res) => {
+    try {
+        const { username, password } = req.body;
 
-app.post('/api/auth/delete-account', (req, res) => {
-    const { username, pairCode } = req.body;
-    if (!username) return res.status(400).json({ message: 'Username required.' });
+        const user = await User.findOne({ username, password });
+        if (!user) {
+            return res.status(400).json({ message: 'Invalid username or password.' });
+        }
 
-    const initialLength = users.length;
-    users = users.filter(u => u.username.toLowerCase() !== username.toLowerCase());
-
-    if (users.length === initialLength) {
-        return res.status(404).json({ message: 'User not found.' });
+        res.status(200).json({ message: 'Login successful!', user });
+    } catch (err) {
+        console.error('Login Error:', err);
+        res.status(500).json({ message: 'Server error during login.' });
     }
-
-    if (pairCode) {
-        io.to(pairCode).emit('receive-message', {
-            type: 'system',
-            text: `${username} has permanently deleted their account.`
-        });
-    }
-
-    return res.status(200).json({ success: true, message: 'Account permanently deleted.' });
 });
 
-// --- CHAT & MEDIA ENDPOINTS ---
-
-app.get('/api/chat/:pairCode', (req, res) => {
-    const { pairCode } = req.params;
-    const history = (chatHistory[pairCode] || []).filter(msg => msg.type !== 'system');
-    res.json(history);
-});
-
-app.post('/api/chat/upload', upload.single('file'), (req, res) => {
-    const { pairCode, sender, type } = req.body;
-    if (!req.file || !pairCode || !sender) {
-        return res.status(400).json({ message: 'Missing parameters.' });
+// GET /api/memories
+app.get('/api/memories', async (req, res) => {
+    try {
+        const { pairCode } = req.query;
+        const memories = await Memory.find({ pairCode }).sort({ date: -1 });
+        res.json(memories);
+    } catch (err) {
+        res.status(500).json({ message: 'Error fetching memories.' });
     }
-    const fileUrl = `/uploads/${req.file.filename}`;
-    const messageData = {
-        id: Date.now().toString(),
-        pairCode,
-        sender,
-        type,
-        fileUrl,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-    if (!chatHistory[pairCode]) chatHistory[pairCode] = [];
-    chatHistory[pairCode].push(messageData);
-    res.json({ success: true, message: messageData });
 });
 
-// --- SOCKET LOGIC ---
+// POST /api/memories
+app.post('/api/memories', async (req, res) => {
+    try {
+        const { pairCode, title, caption, image } = req.body;
+        const newMemory = new Memory({ pairCode, title, caption, image });
+        await newMemory.save();
+        res.status(201).json(newMemory);
+    } catch (err) {
+        res.status(500).json({ message: 'Error saving memory.' });
+    }
+});
 
+// Fallback Route to serve index.html for unknown routes
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Real-time Chat Socket
 io.on('connection', (socket) => {
-    socket.on('join-room', ({ pairCode, username }) => {
+    socket.on('join', ({ pairCode }) => {
         socket.join(pairCode);
-        socket.pairCode = pairCode;
-        socket.username = username;
-
-        const verb = getVerb(username);
-        socket.to(pairCode).emit('receive-message', {
-            type: 'system',
-            text: `${username} ${verb} now online 💕`,
-            pairCode
-        });
     });
 
-    socket.on('send-message', (data) => {
-        if (!data.pairCode) return;
-        data.id = data.id || Date.now().toString();
-
-        if (!chatHistory[data.pairCode]) chatHistory[data.pairCode] = [];
-        if (data.type !== 'system') {
-            chatHistory[data.pairCode].push(data);
-        }
-
-        io.to(data.pairCode).emit('receive-message', data);
-    });
-
-    socket.on('disconnect', () => {
-        if (socket.pairCode && socket.username) {
-            const verb = getVerb(socket.username);
-            socket.to(socket.pairCode).emit('receive-message', {
-                type: 'system',
-                text: `${socket.username} ${verb} now offline 💔`,
-                pairCode: socket.pairCode
-            });
-        }
+    socket.on('sendMessage', (data) => {
+        io.to(data.pairCode).emit('message', data);
     });
 });
 
-server.listen(PORT, () => console.log(`BaeSpace running on port ${PORT}`));
+server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
