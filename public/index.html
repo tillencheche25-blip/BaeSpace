@@ -3,879 +3,257 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BaeSpace | Private Couple Space</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BaeSpace - Private Couple App</title>
 
-    <link rel="manifest" href="/manifest.json">
-    <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js');
-        }
-    </script>
+    <!-- PWA Requirements -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#111b21">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
 
+    <!-- CSS Dependencies -->
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Emoji Mart Integration -->
     <script src="https://cdn.jsdelivr.net/npm/emoji-mart@latest/dist/browser.js"></script>
-
-    <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        /* Outer desktop wrapper - ensures mobile frame is perfectly centered */
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background: #0d1418;
-            height: 100vh;
-            width: 100vw;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #e9edef;
-            overflow: hidden;
-        }
-
-        /* Simulated Mobile Viewport Frame */
-        .container {
-            width: 100%;
-            max-width: 440px;
-            height: 100vh;
-            max-height: 850px;
-            background: #0b141a;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            position: relative;
-            border-radius: 16px;
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
-            border: 1px solid #202c33;
-        }
-
-        /* SPLASH SCREEN */
-        #splash-screen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: #0b141a;
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 15px;
-            transition: opacity 0.5s ease;
-        }
-
-        #splash-screen .logo {
-            font-size: 3.5rem;
-            animation: pulse 1.5s infinite alternate;
-        }
-
-        @keyframes pulse {
-            0% {
-                transform: scale(1);
-            }
-
-            100% {
-                transform: scale(1.15);
-            }
-        }
-
-        #splash-screen h1 {
-            color: #00a884;
-            font-size: 1.8rem;
-        }
-
-        /* AUTH SCREEN - CONSTRAINED & CENTERED INSIDE APP FRAME */
-        #auth-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: #111b21;
-            display: flex !important;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 999;
-            padding: 20px;
-            box-sizing: border-box;
-            overflow-y: auto;
-        }
-
-        .auth-card {
-            width: 100%;
-            max-width: 380px;
-            background: #1f2c34;
-            padding: 30px 24px;
-            border-radius: 16px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-            box-sizing: border-box;
-        }
-
-        #auth-container h2 {
-            color: #00a884;
-            font-size: 1.6rem;
-            margin-bottom: 8px;
-        }
-
-        #auth-container p.subtitle {
-            color: #8696a0;
-            font-size: 0.9rem;
-            margin-bottom: 20px;
-        }
-
-        #auth-container input,
-        .form-input {
-            width: 100%;
-            padding: 14px;
-            background: #202c33;
-            border: 1px solid #2a3942;
-            border-radius: 8px;
-            outline: none;
-            color: #e9edef;
-            font-size: 0.95rem;
-            box-sizing: border-box;
-            margin-bottom: 12px;
-        }
-
-        #auth-container input:focus,
-        .form-input:focus {
-            border-color: #00a884;
-        }
-
-        .btn-primary {
-            width: 100%;
-            padding: 14px;
-            background: #00a884;
-            color: #111b21;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background 0.2s;
-            box-sizing: border-box;
-            margin-bottom: 12px;
-        }
-
-        .btn-primary:hover {
-            background: #029071;
-        }
-
-        .toggle-text {
-            font-size: 0.85rem;
-            color: #8696a0;
-            cursor: pointer;
-            margin-top: 8px;
-        }
-
-        .toggle-text span {
-            color: #00a884;
-            font-weight: bold;
-        }
-
-        /* HEADER */
-        .chat-header {
-            background: #202c33;
-            color: #e9edef;
-            padding: 12px 16px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-            z-index: 10;
-            flex-shrink: 0;
-        }
-
-        .header-info {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: #00a884;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            color: #fff;
-            font-size: 1.1rem;
-            overflow: hidden;
-            object-fit: cover;
-            flex-shrink: 0;
-        }
-
-        .avatar img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .user-details h3 {
-            font-size: 1rem;
-            font-weight: 500;
-        }
-
-        #typing-status {
-            font-size: 0.75rem;
-            color: #00a884;
-            display: block;
-            height: 14px;
-        }
-
-        /* MAIN APP VIEWS */
-        #app-viewport {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .screen-view {
-            display: none;
-            flex-direction: column;
-            height: 100%;
-            width: 100%;
-            padding: 16px;
-            overflow-y: auto;
-        }
-
-        .screen-view.active {
-            display: flex;
-        }
-
-        /* CHAT VIEW */
-        #chat-screen {
-            padding: 0;
-        }
-
-        #chat-box {
-            flex: 1;
-            padding: 16px;
-            overflow-y: auto;
-            min-height: 0;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            background-color: #0b141a;
-            background-image: radial-gradient(#111b21 1px, transparent 0);
-            background-size: 16px 16px;
-        }
-
-        .msg-wrapper {
-            display: flex;
-            align-items: flex-end;
-            gap: 8px;
-            max-width: 85%;
-        }
-
-        .msg-wrapper.sent {
-            align-self: flex-end;
-            flex-direction: row-reverse;
-        }
-
-        .msg-wrapper.received {
-            align-self: flex-start;
-        }
-
-        .msg-avatar {
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            background: #00a884;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.8rem;
-            overflow: hidden;
-            object-fit: cover;
-            flex-shrink: 0;
-            margin-bottom: 2px;
-        }
-
-        .msg-avatar img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .msg {
-            padding: 8px 12px 6px 12px;
-            border-radius: 8px;
-            font-size: 0.92rem;
-            line-height: 1.4;
-            word-wrap: break-word;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-            position: relative;
-            cursor: pointer;
-            user-select: none;
-        }
-
-        .sent .msg {
-            background: #005c4b;
-            color: #e9edef;
-            border-top-right-radius: 0;
-        }
-
-        .received .msg {
-            background: #202c33;
-            color: #e9edef;
-            border-top-left-radius: 0;
-        }
-
-        .msg img {
-            max-width: 100%;
-            border-radius: 6px;
-            margin-top: 4px;
-        }
-
-        .msg audio {
-            width: 220px;
-            height: 36px;
-            margin-top: 4px;
-        }
-
-        .msg .sender {
-            font-weight: 600;
-            font-size: 0.75rem;
-            color: #53bdeb;
-            margin-bottom: 2px;
-            display: block;
-        }
-
-        .msg-footer {
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            gap: 4px;
-            margin-top: 2px;
-            float: right;
-            margin-left: 10px;
-        }
-
-        .msg .time {
-            font-size: 0.65rem;
-            color: #8696a0;
-        }
-
-        .ticks {
-            font-size: 0.75rem;
-            color: #53bdeb;
-        }
-
-        .reaction-badge {
-            position: absolute;
-            bottom: -8px;
-            right: 8px;
-            background: #1f2c34;
-            border: 1px solid #00a884;
-            border-radius: 12px;
-            padding: 1px 5px;
-            font-size: 0.75rem;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
-        }
-
-        #reaction-bar {
-            display: none;
-            position: absolute;
-            background: #202c33;
-            border: 1px solid #2a3942;
-            border-radius: 20px;
-            padding: 6px 12px;
-            gap: 10px;
-            z-index: 200;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-        }
-
-        #reaction-bar span {
-            font-size: 1.3rem;
-            cursor: pointer;
-            transition: transform 0.1s;
-        }
-
-        #reaction-bar span:hover {
-            transform: scale(1.3);
-        }
-
-        .inputs {
-            display: flex;
-            padding: 10px 12px;
-            background: #202c33;
-            gap: 8px;
-            align-items: center;
-            flex-shrink: 0;
-        }
-
-        .inputs input[type="text"] {
-            flex: 1;
-            padding: 10px 16px;
-            background: #2a3942;
-            border: none;
-            border-radius: 8px;
-            outline: none;
-            color: #e9edef;
-            font-size: 0.95rem;
-        }
-
-        .btn-icon {
-            background: none;
-            border: none;
-            font-size: 1.3rem;
-            cursor: pointer;
-            color: #8696a0;
-        }
-
-        .btn-icon.recording {
-            color: #e63946;
-            animation: pulse 0.8s infinite alternate;
-        }
-
-        .btn-send {
-            padding: 8px;
-            background: #00a884;
-            color: #111b21;
-            border: none;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.1rem;
-            flex-shrink: 0;
-        }
-
-        /* MEMORIES, NOTES, DATES CARDS */
-        .section-header {
-            font-size: 1.2rem;
-            color: #00a884;
-            margin-bottom: 15px;
-            font-weight: 600;
-        }
-
-        .card-grid {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .card {
-            background: #202c33;
-            border: 1px solid #2a3942;
-            padding: 14px;
-            border-radius: 10px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        }
-
-        .card h4 {
-            color: #00a884;
-            margin-bottom: 6px;
-        }
-
-        .card p {
-            color: #d1d7db;
-            font-size: 0.9rem;
-        }
-
-        .card img {
-            width: 100%;
-            border-radius: 8px;
-            margin-top: 8px;
-        }
-
-        .add-form {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            margin-bottom: 20px;
-            background: #111b21;
-            padding: 14px;
-            border-radius: 10px;
-            border: 1px solid #2a3942;
-        }
-
-        .counter-card {
-            background: linear-gradient(135deg, #005c4b 0%, #202c33 100%);
-            border: 1px solid #00a884;
-            padding: 20px;
-            border-radius: 12px;
-            text-align: center;
-            margin-bottom: 20px;
-        }
-
-        .counter-card h3 {
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: #8696a0;
-            margin-bottom: 8px;
-        }
-
-        .counter-display {
-            font-size: 1.4rem;
-            font-weight: bold;
-            color: #00a884;
-        }
-
-        .avatar-edit-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-
-        .large-avatar {
-            width: 90px;
-            height: 90px;
-            border-radius: 50%;
-            background: #00a884;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2.5rem;
-            color: #fff;
-            border: 3px solid #00a884;
-            overflow: hidden;
-            object-fit: cover;
-            cursor: pointer;
-        }
-
-        .large-avatar img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .avatar-presets {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            justify-content: center;
-            margin-top: 5px;
-        }
-
-        .preset-btn {
-            background: #202c33;
-            border: 1px solid #2a3942;
-            border-radius: 50%;
-            width: 38px;
-            height: 38px;
-            font-size: 1.2rem;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .preset-btn:hover {
-            border-color: #00a884;
-        }
-
-        /* BOTTOM NAVIGATION BAR */
-        .bottom-nav {
-            display: flex;
-            background: #202c33;
-            border-top: 1px solid #2a3942;
-            flex-shrink: 0;
-        }
-
-        .nav-item {
-            flex: 1;
-            padding: 10px 0;
-            text-align: center;
-            color: #8696a0;
-            font-size: 0.75rem;
-            cursor: pointer;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 3px;
-            position: relative;
-        }
-
-        .nav-item .icon {
-            font-size: 1.2rem;
-        }
-
-        .nav-item.active {
-            color: #00a884;
-        }
-
-        .badge {
-            display: none;
-            position: absolute;
-            top: 6px;
-            right: 18px;
-            width: 9px;
-            height: 9px;
-            background-color: #e63946;
-            border-radius: 50%;
-            border: 2px solid #202c33;
-        }
-
-        #emoji-picker-container {
-            display: none;
-            position: absolute;
-            bottom: 65px;
-            left: 10px;
-            z-index: 100;
-        }
-    </style>
 </head>
 
 <body>
 
     <div class="container">
-        <!-- SPLASH SCREEN -->
-        <div id="splash-screen">
-            <div class="logo">💕</div>
-            <h1>BaeSpace</h1>
-            <p style="color: #8696a0; font-size: 0.85rem;">Your Private Couple Universe</p>
+
+        <!-- Authentication Screen -->
+        <div id="auth-container">
+            <div class="auth-box">
+                <i class="fa-solid fa-heart-pulse auth-icon"></i>
+                <h2>BaeSpace</h2>
+                <p id="auth-subtitle">Connect privately with your partner</p>
+
+                <form id="auth-form" onsubmit="handleAuth(event)">
+                    <input type="email" id="auth-email" placeholder="Email Address" required>
+                    <input type="password" id="auth-password" placeholder="Password" required>
+                    <input type="text" id="auth-pair-code" placeholder="Partner's Secret Pair Code (Optional)">
+
+                    <button type="submit" id="auth-btn" class="btn btn-primary">Log In</button>
+                </form>
+
+                <p class="auth-toggle">
+                    <span id="auth-toggle-text">Don't have an account?</span>
+                    <a href="#" onclick="toggleAuthMode(event)" id="auth-toggle-link">Sign Up</a>
+                </p>
+            </div>
         </div>
 
-        <!-- REACTION POPUP BAR -->
-        <div id="reaction-bar">
-            <span onclick="sendReaction('❤️')">❤️</span>
-            <span onclick="sendReaction('😂')">😂</span>
-            <span onclick="sendReaction('😮')">😮</span>
-            <span onclick="sendReaction('🥺')">🥺</span>
-            <span onclick="sendReaction('🔥')">🔥</span>
-            <span onclick="sendReaction('👍')">👍</span>
-        </div>
-
-        <!-- APP HEADER -->
-        <div class="chat-header" id="main-header" style="display: none;">
-            <div class="header-info">
-                <div class="avatar" id="header-avatar">💬</div>
+        <!-- Header -->
+        <header class="chat-header">
+            <div class="user-info">
+                <div class="avatar-container" onclick="switchTab('profile')">
+                    <img id="header-avatar" src="https://via.placeholder.com/40" alt="Avatar" class="avatar">
+                    <span id="header-mood" class="mood-badge">😊</span>
+                </div>
                 <div class="user-details">
-                    <h3 id="header-title">BaeSpace</h3>
-                    <span id="typing-status"></span>
+                    <h3 id="header-partner-name">Babe ❤️</h3>
+                    <span id="header-status" class="status">Online</span>
                 </div>
             </div>
-            <span id="current-mood-tag" style="font-size: 1.2rem;">🥰</span>
-        </div>
-
-        <!-- AUTH SCREEN -->
-        <div id="auth-container">
-            <div class="auth-card">
-                <h2 id="auth-title">BaeSpace 💕</h2>
-                <p id="auth-subtitle" class="subtitle">Enter your credentials to enter your space</p>
-
-                <input type="text" id="auth-username" placeholder="Username">
-                <input type="password" id="auth-password" placeholder="Password">
-                <input type="text" id="auth-paircode" placeholder="Couple Pair Code (e.g. 777)" style="display: none;">
-
-                <button id="auth-btn" class="btn-primary" onclick="handleAuth()">Login</button>
-                <p class="toggle-text" onclick="toggleAuthMode()">Don't have an account? <span id="toggle-link">Sign
-                        Up</span></p>
+            <div class="header-actions">
+                <i class="fa-solid fa-phone" onclick="initiateCall('audio')" title="Voice Call"></i>
+                <i class="fa-solid fa-video" onclick="initiateCall('video')" title="Video Call"></i>
             </div>
-        </div>
+        </header>
 
-        <!-- MAIN APP VIEWPORT -->
-        <div id="app-viewport" style="display: none;">
+        <!-- Main Viewport Screens -->
+        <main class="main-content">
 
             <!-- 1. CHAT SCREEN -->
-            <div id="chat-screen" class="screen-view active">
-                <div id="emoji-picker-container"></div>
-                <div id="chat-box"></div>
-                <div class="inputs">
-                    <button class="btn-icon" id="emoji-btn" onclick="toggleEmojiPicker()">😊</button>
-                    <button class="btn-icon" onclick="document.getElementById('file-input').click()">📷</button>
-                    <button class="btn-icon" id="mic-btn" onclick="toggleVoiceRecord()">🎙️</button>
-                    <input type="file" id="file-input" style="display: none;" accept="image/*"
-                        onchange="uploadImage(this)">
+            <section id="chat-screen" class="screen-view active">
+                <div class="messages-container" id="messages-container">
+                    <div class="date-divider">Today</div>
 
-                    <input type="text" id="msg-input" placeholder="Type a message">
-                    <button class="btn-send" id="send-btn">➤</button>
-                </div>
-            </div>
-
-            <!-- 2. MEMORIES SCREEN -->
-            <div id="memories-screen" class="screen-view">
-                <div class="section-header">Shared Memories 📸</div>
-                <div class="add-form">
-                    <input type="text" id="mem-title" class="form-input" placeholder="Memory Title">
-                    <input type="file" id="mem-file" class="form-input" accept="image/*">
-                    <input type="text" id="mem-caption" class="form-input" placeholder="Caption / Description">
-                    <button class="btn-primary" onclick="saveMemory()">Upload Memory</button>
-                </div>
-                <div class="card-grid" id="memories-list"></div>
-            </div>
-
-            <!-- 3. LOVE NOTES SCREEN -->
-            <div id="notes-screen" class="screen-view">
-                <div class="section-header">Love Notes 💌</div>
-                <div class="add-form">
-                    <textarea id="note-content" class="form-input" style="height: 80px; resize: none;"
-                        placeholder="Write a cute note for your partner..."></textarea>
-                    <button class="btn-primary" onclick="saveNote()">Post Note</button>
-                </div>
-                <div class="card-grid" id="notes-list"></div>
-            </div>
-
-            <!-- 4. IMPORTANT DATES SCREEN -->
-            <div id="dates-screen" class="screen-view">
-                <div class="section-header">Important Dates 📅</div>
-                <div class="add-form">
-                    <input type="text" id="date-title" class="form-input" placeholder="Event (e.g. Anniversary)">
-                    <input type="date" id="date-value" class="form-input">
-                    <button class="btn-primary" onclick="saveDate()">Add Date</button>
-                </div>
-                <div class="card-grid" id="dates-list"></div>
-            </div>
-
-            <!-- 5. MOOD TRACKER SCREEN -->
-            <div id="mood-screen" class="screen-view">
-                <div class="section-header">Set Your Current Mood 🥰</div>
-                <p style="color: #8696a0; margin-bottom: 20px; font-size: 0.9rem;">Let your partner know how you are
-                    feeling right now:</p>
-                <div class="card-grid">
-                    <button class="btn-primary" style="background:#202c33; color:#e9edef; text-align:left;"
-                        onclick="updateMood('🥰 Happy & Loving')">🥰 Happy & Loving</button>
-                    <button class="btn-primary" style="background:#202c33; color:#e9edef; text-align:left;"
-                        onclick="updateMood('🥺 Missing You')">🥺 Missing You</button>
-                    <button class="btn-primary" style="background:#202c33; color:#e9edef; text-align:left;"
-                        onclick="updateMood('💼 Busy at Work')">💼 Busy at Work</button>
-                    <button class="btn-primary" style="background:#202c33; color:#e9edef; text-align:left;"
-                        onclick="updateMood('😴 Tired / Sleeping')">😴 Tired / Sleeping</button>
-                    <button class="btn-primary" style="background:#202c33; color:#e9edef; text-align:left;"
-                        onclick="updateMood('❤️ Need Hugs')">❤️ Need Hugs</button>
-                </div>
-            </div>
-
-            <!-- 6. PROFILE & SETTINGS -->
-            <div id="profile-screen" class="screen-view">
-                <div class="section-header">Couple Profile 👤</div>
-
-                <div class="counter-card">
-                    <h3>Together For</h3>
-                    <div id="days-together-display" class="counter-display">Set Anniversary Date</div>
-                </div>
-
-                <div class="card" style="text-align: center; margin-bottom: 20px;">
-                    <div class="avatar-edit-container">
-                        <div class="large-avatar" id="profile-avatar-display"
-                            onclick="document.getElementById('avatar-file-input').click()">
-                            👤
-                        </div>
-                        <input type="file" id="avatar-file-input" style="display: none;" accept="image/*"
-                            onchange="uploadCustomAvatar(this)">
-                        <span style="font-size:0.75rem; color:#00a884; cursor:pointer;"
-                            onclick="document.getElementById('avatar-file-input').click()">📷 Upload Photo</span>
-
-                        <div class="avatar-presets">
-                            <button class="preset-btn" onclick="setEmojiAvatar('👑')">👑</button>
-                            <button class="preset-btn" onclick="setEmojiAvatar('🦁')">🦁</button>
-                            <button class="preset-btn" onclick="setEmojiAvatar('🌸')">🌸</button>
-                            <button class="preset-btn" onclick="setEmojiAvatar('🐱')">🐱</button>
-                            <button class="preset-btn" onclick="setEmojiAvatar('🧸')">🧸</button>
-                            <button class="preset-btn" onclick="setEmojiAvatar('🚀')">🚀</button>
-                        </div>
+                    <div class="msg received">
+                        <p>Hey handsome! Miss you ❤️</p>
+                        <span class="timestamp">10:14 AM</span>
                     </div>
 
-                    <h3 id="prof-username" style="color: #00a884;">User</h3>
-                    <p id="prof-paircode" style="color: #8696a0; margin-top: 4px;">Pair Code: ---</p>
+                    <div class="msg sent">
+                        <p>Miss you more babe! Can't wait for dinner tonight 🥰</p>
+                        <span class="timestamp">10:15 AM <i class="fa-solid fa-check-double read-receipt"></i></span>
+                    </div>
                 </div>
 
-                <div class="add-form" style="margin-bottom: 15px;">
-                    <label style="font-size:0.8rem; color:#8696a0;">Set Relationship Start Date:</label>
-                    <input type="date" id="anniversary-input" class="form-input">
-                    <button class="btn-primary" style="padding:10px;" onclick="saveAnniversary()">Save Date</button>
+                <!-- Emoji Picker Container -->
+                <div id="emoji-picker-container" class="emoji-picker-hidden"></div>
+
+                <!-- Chat Input Controls -->
+                <div class="chat-input-area">
+                    <i class="fa-regular fa-face-smile icon-btn" onclick="toggleEmojiPicker()"></i>
+                    <i class="fa-solid fa-paperclip icon-btn" onclick="triggerFileInput()"></i>
+                    <input type="file" id="image-upload" accept="image/*" style="display: none;"
+                        onchange="uploadImage(event)">
+
+                    <input type="text" id="msg-input" placeholder="Message..." onkeypress="handleKeyPress(event)">
+
+                    <i class="fa-solid fa-microphone icon-btn" id="mic-btn" onclick="toggleVoiceRecord()"></i>
+                    <button id="send-btn" class="send-btn" onclick="sendMessage()">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                </div>
+            </section>
+
+            <!-- 2. MEMORIES SCREEN -->
+            <section id="memories-screen" class="screen-view">
+                <div class="section-header">
+                    <h2>Our Memories</h2>
+                    <button class="btn btn-sm" onclick="openModal('memory-modal')"><i class="fa-solid fa-plus"></i>
+                        Add</button>
+                </div>
+                <div class="memory-grid" id="memory-grid">
+                    <div class="memory-card">
+                        <img src="https://via.placeholder.com/150" alt="Memory">
+                        <p>Beach Trip 2025 🌊</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. NOTES SCREEN -->
+            <section id="notes-screen" class="screen-view">
+                <div class="section-header">
+                    <h2>Love Notes</h2>
+                    <button class="btn btn-sm" onclick="openModal('note-modal')"><i class="fa-solid fa-plus"></i> Add
+                        Note</button>
+                </div>
+                <div class="notes-list" id="notes-list">
+                    <div class="note-card">
+                        <p class="note-text">Remember to grab ice cream on your way home! 🍦</p>
+                        <span class="note-date">Yesterday</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. DATES SCREEN -->
+            <section id="dates-screen" class="screen-view">
+                <div class="section-header">
+                    <h2>Upcoming Dates</h2>
+                    <button class="btn btn-sm" onclick="openModal('date-modal')"><i class="fa-solid fa-plus"></i> Plan
+                        Date</button>
+                </div>
+                <div class="dates-list" id="dates-list">
+                    <div class="date-card">
+                        <i class="fa-solid fa-utensils date-icon"></i>
+                        <div>
+                            <h4>Italian Dinner Night</h4>
+                            <p>Friday at 7:30 PM</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 5. PROFILE / SETTINGS SCREEN -->
+            <section id="profile-screen" class="screen-view">
+                <div class="profile-header">
+                    <img id="profile-avatar" src="https://via.placeholder.com/80" alt="Profile Avatar"
+                        class="profile-avatar-lg">
+                    <h3 id="profile-name">My Account</h3>
+                    <p id="pair-status-badge" class="badge">Paired with Babe ❤️</p>
                 </div>
 
-                <button class="btn-primary" style="background: #202c33; color: white; margin-bottom: 10px;"
-                    onclick="logout()">Logout</button>
-                <button class="btn-primary" style="background: #e63946; color: white;" onclick="deleteAccount()">Delete
-                    Account Permanently</button>
-            </div>
+                <div class="settings-group">
+                    <h4>Current Mood</h4>
+                    <div class="mood-selector">
+                        <span onclick="setMood('😊')">😊</span>
+                        <span onclick="setMood('🥰')">🥰</span>
+                        <span onclick="setMood('😴')">😴</span>
+                        <span onclick="setMood('🥺')">🥺</span>
+                        <span onclick="setMood('🔥')">🔥</span>
+                    </div>
+                </div>
 
-        </div>
+                <div class="settings-group">
+                    <h4>Anniversary Date</h4>
+                    <input type="date" id="anniversary-picker" onchange="saveAnniversary(event)">
+                </div>
 
-        <!-- BOTTOM NAVIGATION BAR -->
-        <div class="bottom-nav" id="main-nav" style="display: none;">
-            <div class="nav-item active" onclick="switchTab('chat-screen', this)">
-                <span class="icon">💬</span>
+                <div class="settings-group">
+                    <h4>Avatar Customization</h4>
+                    <button class="btn btn-secondary btn-full" onclick="triggerAvatarUpload()">Upload Photo</button>
+                    <input type="file" id="avatar-upload" accept="image/*" style="display:none;"
+                        onchange="uploadCustomAvatar(event)">
+                </div>
+
+                <div class="settings-group danger-zone">
+                    <button class="btn btn-outline-danger btn-full" onclick="logout()">Log Out</button>
+                    <button class="btn btn-danger btn-full" onclick="deleteAccount()">Delete Account</button>
+                </div>
+            </section>
+        </main>
+
+        <!-- Bottom Navigation Bar -->
+        <nav class="bottom-nav">
+            <button class="nav-btn active" onclick="switchTab('chat')">
+                <i class="fa-solid fa-comment-dots"></i>
                 <span>Chat</span>
-            </div>
-            <div class="nav-item" onclick="switchTab('memories-screen', this)">
-                <span class="badge" id="badge-memories"></span>
-                <span class="icon">📸</span>
+            </button>
+            <button class="nav-btn" onclick="switchTab('memories')">
+                <i class="fa-solid fa-images"></i>
                 <span>Memories</span>
-            </div>
-            <div class="nav-item" onclick="switchTab('notes-screen', this)">
-                <span class="badge" id="badge-notes"></span>
-                <span class="icon">💌</span>
+            </button>
+            <button class="nav-btn" onclick="switchTab('notes')">
+                <i class="fa-solid fa-note-sticky"></i>
                 <span>Notes</span>
-            </div>
-            <div class="nav-item" onclick="switchTab('dates-screen', this)">
-                <span class="icon">📅</span>
+            </button>
+            <button class="nav-btn" onclick="switchTab('dates')">
+                <i class="fa-solid fa-calendar-heart"></i>
                 <span>Dates</span>
-            </div>
-            <div class="nav-item" onclick="switchTab('mood-screen', this)">
-                <span class="icon">🥰</span>
-                <span>Mood</span>
-            </div>
-            <div class="nav-item" onclick="switchTab('profile-screen', this)">
-                <span class="icon">👤</span>
+            </button>
+            <button class="nav-btn" onclick="switchTab('profile')">
+                <i class="fa-solid fa-user-gear"></i>
                 <span>Profile</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- Modals for Features -->
+    <!-- Add Memory Modal -->
+    <div id="memory-modal" class="modal">
+        <div class="modal-content">
+            <h3>Add New Memory</h3>
+            <input type="file" id="memory-image-input" accept="image/*">
+            <input type="text" id="memory-caption-input" placeholder="Caption (e.g. Sunset Walk)">
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('memory-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveMemory()">Save</button>
             </div>
         </div>
     </div>
 
-    <script src="/socket.io/socket.io.js"></script>
+    <!-- Add Note Modal -->
+    <div id="note-modal" class="modal">
+        <div class="modal-content">
+            <h3>Add Love Note</h3>
+            <textarea id="note-text-input" placeholder="Write something sweet..."></textarea>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('note-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveNote()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Date Modal -->
+    <div id="date-modal" class="modal">
+        <div class="modal-content">
+            <h3>Plan a Date</h3>
+            <input type="text" id="date-title-input" placeholder="Title (e.g., Movie Night)">
+            <input type="datetime-local" id="date-time-input">
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('date-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveDate()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- App Logic -->
     <script src="app.js"></script>
-
-    <script>
-        // Splash Screen Timer
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                const splash = document.getElementById('splash-screen');
-                if (splash) {
-                    splash.style.opacity = '0';
-                    setTimeout(() => splash.style.display = 'none', 500);
-                }
-            }, 1200);
-        });
-
-        // Tab Switcher Logic
-        function switchTab(screenId, navEl) {
-            document.querySelectorAll('.screen-view').forEach(s => s.classList.remove('active'));
-            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-
-            const targetScreen = document.getElementById(screenId);
-            if (targetScreen) targetScreen.classList.add('active');
-            if (navEl) navEl.classList.add('active');
-
-            if (screenId === 'memories-screen') {
-                if (typeof fetchMemories === 'function') fetchMemories();
-                const badge = document.getElementById('badge-memories');
-                if (badge) badge.style.display = 'none';
-            }
-            if (screenId === 'notes-screen') {
-                if (typeof fetchNotes === 'function') fetchNotes();
-                const badge = document.getElementById('badge-notes');
-                if (badge) badge.style.display = 'none';
-            }
-            if (screenId === 'dates-screen') {
-                if (typeof fetchDates === 'function') fetchDates();
-            }
-        }
-    </script>
 </body>
 
 </html>

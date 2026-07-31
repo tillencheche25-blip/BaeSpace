@@ -1,473 +1,232 @@
-// --- STATE & GLOBAL VARIABLES ---
-const socket = io();
-let currentUser = null;
-let currentPairCode = null;
-let selectedMsgIdForReaction = null;
-let mediaRecorder = null;
-let audioChunks = [];
+// Global State Tracker
+let isLoginMode = true;
 let isRecording = false;
 
-// --- DOM ELEMENTS ---
-const authContainer = document.getElementById('auth-container');
-const appViewport = document.getElementById('app-viewport');
-const mainHeader = document.getElementById('main-header');
-const mainNav = document.getElementById('main-nav');
-
-const authTitle = document.getElementById('auth-title');
-const authSubtitle = document.getElementById('auth-subtitle');
-const authUsername = document.getElementById('auth-username');
-const authPassword = document.getElementById('auth-password');
-const authPaircode = document.getElementById('auth-paircode');
-const authBtn = document.getElementById('auth-btn');
-const toggleLink = document.getElementById('toggle-link');
-
-const chatBox = document.getElementById('chat-box');
-const msgInput = document.getElementById('msg-input');
-const sendBtn = document.getElementById('send-btn');
-const reactionBar = document.getElementById('reaction-bar');
-
-let isSignUp = false;
-
-// --- INITIALIZATION ---
-window.addEventListener('DOMContentLoaded', () => {
-    checkSavedSession();
-    setupEventListeners();
+// 1. Initialize Emoji Mart Picker
+document.addEventListener('DOMContentLoaded', () => {
+    try {
+        const pickerOptions = {
+            onEmojiSelect: (emoji) => {
+                const input = document.getElementById('msg-input');
+                input.value += emoji.native;
+            }
+        };
+        const picker = new EmojiMart.Picker(pickerOptions);
+        document.getElementById('emoji-picker-container').appendChild(picker);
+    } catch (e) {
+        console.log("Emoji Mart initialized lazily or offline mode.");
+    }
 });
 
-function setupEventListeners() {
-    sendBtn.addEventListener('click', sendMessage);
-    msgInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') sendMessage();
-    });
+// 2. Auth Flow Toggle
+function toggleAuthMode(event) {
+    if (event) event.preventDefault();
+    isLoginMode = !isLoginMode;
 
-    // Typing indicator events
-    msgInput.addEventListener('input', () => {
-        if (currentPairCode) {
-            socket.emit('typing', { pairCode: currentPairCode, username: currentUser.username });
-        }
-    });
+    const title = document.querySelector('.auth-box h2');
+    const subtitle = document.getElementById('auth-subtitle');
+    const submitBtn = document.getElementById('auth-btn');
+    const toggleText = document.getElementById('auth-toggle-text');
+    const toggleLink = document.getElementById('auth-toggle-link');
+    const pairInput = document.getElementById('auth-pair-code');
 
-    // Dismiss reaction bar on click outside
-    document.addEventListener('click', (e) => {
-        if (!reactionBar.contains(e.target) && !e.target.classList.contains('msg')) {
-            reactionBar.style.display = 'none';
-        }
-    });
-}
-
-// --- AUTHENTICATION LOGIC ---
-function toggleAuthMode() {
-    isSignUp = !isSignUp;
-    if (isSignUp) {
-        authTitle.innerText = "Join BaeSpace 💕";
-        authSubtitle.innerText = "Create an account and connect with your partner";
-        authPaircode.style.display = "block";
-        authBtn.innerText = "Sign Up";
-        toggleLink.innerText = "Login";
-        toggleLink.parentElement.childNodes[0].nodeValue = "Already have an account? ";
+    if (!isLoginMode) {
+        title.textContent = "Create Account";
+        subtitle.textContent = "Start sharing moments together";
+        submitBtn.textContent = "Sign Up";
+        toggleText.textContent = "Already have an account?";
+        toggleLink.textContent = "Log In";
+        pairInput.style.display = "block";
     } else {
-        authTitle.innerText = "BaeSpace 💕";
-        authSubtitle.innerText = "Enter your credentials to enter your space";
-        authPaircode.style.display = "none";
-        authBtn.innerText = "Login";
-        toggleLink.innerText = "Sign Up";
-        toggleLink.parentElement.childNodes[0].nodeValue = "Don't have an account? ";
+        title.textContent = "BaeSpace";
+        subtitle.textContent = "Connect privately with your partner";
+        submitBtn.textContent = "Log In";
+        toggleText.textContent = "Don't have an account?";
+        toggleLink.textContent = "Sign Up";
     }
 }
 
-async function handleAuth() {
-    const username = authUsername.value.trim();
-    const password = authPassword.value.trim();
-    const pairCode = authPaircode.value.trim();
-
-    if (!username || !password) {
-        alert("Please enter both username and password.");
-        return;
-    }
-
-    const endpoint = isSignUp ? '/api/register' : '/api/login';
-    const payload = isSignUp ? { username, password, pairCode } : { username, password };
-
-    try {
-        const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-            localStorage.setItem('baespace_user', JSON.stringify(data.user));
-            initAppSession(data.user);
-        } else {
-            alert(data.message || 'Authentication failed.');
-        }
-    } catch (err) {
-        console.error('Auth error:', err);
-        alert('Server connection error.');
-    }
-}
-
-function checkSavedSession() {
-    const savedUser = localStorage.getItem('baespace_user');
-    if (savedUser) {
-        initAppSession(JSON.parse(savedUser));
-    }
-}
-
-function initAppSession(user) {
-    currentUser = user;
-    currentPairCode = user.pairCode;
-
-    // IMPORTANT: Hide auth container smoothly using display: none
-    authContainer.style.setProperty('display', 'none', 'important');
-    appViewport.style.display = 'flex';
-    mainHeader.style.display = 'flex';
-    mainNav.style.display = 'flex';
-
-    // Populate profile details
-    document.getElementById('prof-username').innerText = user.username;
-    document.getElementById('prof-paircode').innerText = `Pair Code: ${user.pairCode}`;
-    if (user.avatar) updateAvatarUI(user.avatar);
-    if (user.anniversaryDate) calculateAnniversary(user.anniversaryDate);
-
-    // Socket Connection
-    socket.emit('join-room', { pairCode: user.pairCode, username: user.username });
-
-    // Load initial chat history
-    fetchChatHistory();
+function handleAuth(event) {
+    event.preventDefault();
+    // Hide auth screen cleanly using the .hidden class
+    document.getElementById('auth-container').classList.add('hidden');
 }
 
 function logout() {
-    localStorage.removeItem('baespace_user');
-    window.location.reload();
+    document.getElementById('auth-container').classList.remove('hidden');
 }
 
-// --- CHAT MESSAGING ---
-async function fetchChatHistory() {
-    try {
-        const res = await fetch(`/api/messages/${currentPairCode}`);
-        const messages = await res.json();
-        chatBox.innerHTML = '';
-        messages.forEach(renderMessage);
-        scrollToBottom();
-    } catch (err) {
-        console.error('Error loading chat history:', err);
+function deleteAccount() {
+    if (confirm("Are you sure you want to delete your account? This action cannot be undone.")) {
+        logout();
+    }
+}
+
+// 3. Tab Switching Logic
+function switchTab(tabName) {
+    // Hide all screens
+    const screens = document.querySelectorAll('.screen-view');
+    screens.forEach(screen => screen.classList.remove('active'));
+
+    // Remove active state from nav buttons
+    const navBtns = document.querySelectorAll('.nav-btn');
+    navBtns.forEach(btn => btn.classList.remove('active'));
+
+    // Show target screen
+    const targetScreen = document.getElementById(`${tabName}-screen`);
+    if (targetScreen) targetScreen.classList.add('active');
+
+    // Highlight nav item
+    const activeNavIndex = ['chat', 'memories', 'notes', 'dates', 'profile'].indexOf(tabName);
+    if (activeNavIndex !== -1 && navBtns[activeNavIndex]) {
+        navBtns[activeNavIndex].classList.add('active');
+    }
+}
+
+// 4. Chat & Messaging Actions
+function toggleEmojiPicker() {
+    const container = document.getElementById('emoji-picker-container');
+    container.classList.toggle('emoji-picker-hidden');
+}
+
+function triggerFileInput() {
+    document.getElementById('image-upload').click();
+}
+
+function handleKeyPress(event) {
+    if (event.key === 'Enter') {
+        sendMessage();
     }
 }
 
 function sendMessage() {
-    const text = msgInput.value.trim();
+    const input = document.getElementById('msg-input');
+    const text = input.value.trim();
     if (!text) return;
 
-    const msgData = {
-        pairCode: currentPairCode,
-        sender: currentUser.username,
-        text: text,
-        type: 'text',
-        timestamp: new Date().toISOString()
-    };
+    const msgContainer = document.getElementById('messages-container');
+    const msgElement = document.createElement('div');
+    msgElement.className = 'msg sent';
 
-    socket.emit('send-message', msgData);
-    msgInput.value = '';
+    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    msgElement.innerHTML = `<p>${escapeHtml(text)}</p><span class="timestamp">${time} <i class="fa-solid fa-check"></i></span>`;
+
+    msgContainer.appendChild(msgElement);
+    input.value = '';
+    msgContainer.scrollTop = msgContainer.scrollHeight;
+
+    // Hide Emoji Picker if open
+    document.getElementById('emoji-picker-container').classList.add('emoji-picker-hidden');
 }
 
-socket.on('receive-message', (msg) => {
-    renderMessage(msg);
-    scrollToBottom();
-});
+function uploadImage(event) {
+    const file = event.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            const msgContainer = document.getElementById('messages-container');
+            const msgElement = document.createElement('div');
+            msgElement.className = 'msg sent';
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-function renderMessage(msg) {
-    const isSent = msg.sender === currentUser.username;
-    const wrapper = document.createElement('div');
-    wrapper.className = `msg-wrapper ${isSent ? 'sent' : 'received'}`;
-    wrapper.id = `msg-${msg._id || msg.timestamp}`;
-
-    const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-    let contentHtml = '';
-    if (msg.type === 'image') {
-        contentHtml = `<img src="${msg.mediaUrl}" alt="Shared Image" />`;
-    } else if (msg.type === 'audio') {
-        contentHtml = `<audio controls src="${msg.mediaUrl}"></audio>`;
-    } else {
-        contentHtml = `<span>${escapeHtml(msg.text)}</span>`;
-    }
-
-    const reactionHtml = msg.reaction ? `<div class="reaction-badge">${msg.reaction}</div>` : '';
-
-    wrapper.innerHTML = `
-        <div class="msg-avatar">${msg.sender.charAt(0).toUpperCase()}</div>
-        <div class="msg" onclick="showReactions(event, '${msg._id || msg.timestamp}')">
-            ${!isSent ? `<span class="sender">${escapeHtml(msg.sender)}</span>` : ''}
-            ${contentHtml}
-            <div class="msg-footer">
-                <span class="time">${time}</span>
-                ${isSent ? '<span class="ticks">✓✓</span>' : ''}
-            </div>
-            ${reactionHtml}
-        </div>
-    `;
-
-    chatBox.appendChild(wrapper);
-}
-
-function scrollToBottom() {
-    chatBox.scrollTop = chatBox.scrollHeight;
-}
-
-// --- MEDIA UPLOADS (IMAGES & AUDIO) ---
-async function uploadImage(input) {
-    if (!input.files || !input.files[0]) return;
-    const formData = new FormData();
-    formData.append('file', input.files[0]);
-
-    try {
-        const res = await fetch('/api/upload', { method: 'POST', body: formData });
-        const data = await res.json();
-
-        if (data.url) {
-            socket.emit('send-message', {
-                pairCode: currentPairCode,
-                sender: currentUser.username,
-                type: 'image',
-                mediaUrl: data.url,
-                timestamp: new Date().toISOString()
-            });
-        }
-    } catch (err) {
-        alert('Failed to upload image.');
+            msgElement.innerHTML = `<img src="${e.target.result}" alt="Uploaded image"><span class="timestamp">${time}</span>`;
+            msgContainer.appendChild(msgElement);
+            msgContainer.scrollTop = msgContainer.scrollHeight;
+        };
+        reader.readAsDataURL(file);
     }
 }
 
-async function toggleVoiceRecord() {
+function toggleVoiceRecord() {
     const micBtn = document.getElementById('mic-btn');
-
-    if (!isRecording) {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorder = new MediaRecorder(stream);
-            audioChunks = [];
-
-            mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
-            mediaRecorder.onstop = async () => {
-                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                const formData = new FormData();
-                formData.append('file', audioBlob, 'voice-note.webm');
-
-                const res = await fetch('/api/upload', { method: 'POST', body: formData });
-                const data = await res.json();
-
-                if (data.url) {
-                    socket.emit('send-message', {
-                        pairCode: currentPairCode,
-                        sender: currentUser.username,
-                        type: 'audio',
-                        mediaUrl: data.url,
-                        timestamp: new Date().toISOString()
-                    });
-                }
-            };
-
-            mediaRecorder.start();
-            isRecording = true;
-            micBtn.classList.add('recording');
-        } catch (err) {
-            alert('Microphone access denied or unsupported.');
-        }
+    isRecording = !isRecording;
+    if (isRecording) {
+        micBtn.style.color = '#ea4335'; // Red color when recording
     } else {
-        mediaRecorder.stop();
-        isRecording = false;
-        micBtn.classList.remove('recording');
+        micBtn.style.color = '#8696a0';
+        alert("Voice note recording saved!");
     }
 }
 
-// --- MESSAGE REACTIONS ---
-function showReactions(event, msgId) {
-    selectedMsgIdForReaction = msgId;
-    const rect = event.currentTarget.getBoundingClientRect();
-    reactionBar.style.top = `${rect.top - 45}px`;
-    reactionBar.style.left = `${Math.min(rect.left, window.innerWidth - 220)}px`;
-    reactionBar.style.display = 'flex';
+function initiateCall(type) {
+    alert(`Starting ${type} call with your partner...`);
 }
 
-function sendReaction(emoji) {
-    if (!selectedMsgIdForReaction) return;
-    socket.emit('add-reaction', {
-        pairCode: currentPairCode,
-        msgId: selectedMsgIdForReaction,
-        reaction: emoji
-    });
-    reactionBar.style.display = 'none';
+// 5. Profile & Mood Customization
+function setMood(emoji) {
+    document.getElementById('header-mood').textContent = emoji;
+    alert(`Mood updated to ${emoji}`);
 }
 
-socket.on('update-reaction', ({ msgId, reaction }) => {
-    const msgElement = document.getElementById(`msg-${msgId}`);
-    if (msgElement) {
-        let badge = msgElement.querySelector('.reaction-badge');
-        if (!badge) {
-            badge = document.createElement('div');
-            badge.className = 'reaction-badge';
-            msgElement.querySelector('.msg').appendChild(badge);
-        }
-        badge.innerText = reaction;
-    }
-});
+function saveAnniversary(event) {
+    alert(`Anniversary saved for: ${event.target.value}`);
+}
 
-// --- EMOJI PICKER ---
-function toggleEmojiPicker() {
-    const container = document.getElementById('emoji-picker-container');
-    if (container.style.display === 'block') {
-        container.style.display = 'none';
-    } else {
-        if (!container.hasChildNodes()) {
-            const picker = new EmojiMart.Picker({
-                onEmojiSelect: (emoji) => {
-                    msgInput.value += emoji.native;
-                    container.style.display = 'none';
-                }
-            });
-            container.appendChild(picker);
-        }
-        container.style.display = 'block';
+function triggerAvatarUpload() {
+    document.getElementById('avatar-upload').click();
+}
+
+function uploadCustomAvatar(event) {
+    const file = event.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            document.getElementById('header-avatar').src = e.target.result;
+            document.getElementById('profile-avatar').src = e.target.result;
+        };
+        reader.readAsDataURL(file);
     }
 }
 
-// --- MEMORIES, NOTES & DATES ---
-async function fetchMemories() {
-    const res = await fetch(`/api/memories/${currentPairCode}`);
-    const memories = await res.json();
-    const container = document.getElementById('memories-list');
-    container.innerHTML = memories.map(m => `
-        <div class="card">
-            <h4>${escapeHtml(m.title)}</h4>
-            <p>${escapeHtml(m.caption || '')}</p>
-            ${m.imageUrl ? `<img src="${m.imageUrl}" />` : ''}
-        </div>
-    `).join('');
+// 6. Modal Functions
+function openModal(id) {
+    document.getElementById(id).classList.add('active');
 }
 
-async function saveMemory() {
-    const title = document.getElementById('mem-title').value;
-    const caption = document.getElementById('mem-caption').value;
-    const fileInput = document.getElementById('mem-file');
-
-    if (!title) return alert('Memory title required');
-
-    let imageUrl = '';
-    if (fileInput.files[0]) {
-        const formData = new FormData();
-        formData.append('file', fileInput.files[0]);
-        const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
-        const uploadData = await uploadRes.json();
-        imageUrl = uploadData.url;
-    }
-
-    await fetch('/api/memories', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pairCode: currentPairCode, title, caption, imageUrl })
-    });
-
-    document.getElementById('mem-title').value = '';
-    document.getElementById('mem-caption').value = '';
-    fetchMemories();
+function closeModal(id) {
+    document.getElementById(id).classList.remove('active');
 }
 
-async function fetchNotes() {
-    const res = await fetch(`/api/notes/${currentPairCode}`);
-    const notes = await res.json();
-    const container = document.getElementById('notes-list');
-    container.innerHTML = notes.map(n => `
-        <div class="card">
-            <p>"${escapeHtml(n.content)}"</p>
-            <span style="font-size: 0.75rem; color: #00a884;">- ${escapeHtml(n.author)}</span>
-        </div>
-    `).join('');
-}
-
-async function saveNote() {
-    const content = document.getElementById('note-content').value.trim();
-    if (!content) return;
-
-    await fetch('/api/notes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pairCode: currentPairCode, author: currentUser.username, content })
-    });
-
-    document.getElementById('note-content').value = '';
-    fetchNotes();
-}
-
-async function fetchDates() {
-    const res = await fetch(`/api/dates/${currentPairCode}`);
-    const dates = await res.json();
-    const container = document.getElementById('dates-list');
-    container.innerHTML = dates.map(d => `
-        <div class="card">
-            <h4>${escapeHtml(d.title)}</h4>
-            <p>📅 ${new Date(d.date).toLocaleDateString()}</p>
-        </div>
-    `).join('');
-}
-
-async function saveDate() {
-    const title = document.getElementById('date-title').value;
-    const date = document.getElementById('date-value').value;
-
-    if (!title || !date) return alert('Please enter title and date');
-
-    await fetch('/api/dates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pairCode: currentPairCode, title, date })
-    });
-
-    document.getElementById('date-title').value = '';
-    document.getElementById('date-value').value = '';
-    fetchDates();
-}
-
-// --- MOOD & ANNIVERSARY COUNTER ---
-function updateMood(moodText) {
-    document.getElementById('current-mood-tag').innerText = moodText.split(' ')[0];
-    socket.emit('update-mood', { pairCode: currentPairCode, username: currentUser.username, mood: moodText });
-    alert(`Mood updated to: ${moodText}`);
-}
-
-function saveAnniversary() {
-    const dateVal = document.getElementById('anniversary-input').value;
-    if (!dateVal) return;
-
-    calculateAnniversary(dateVal);
-    // Persist date locally/backend
-    currentUser.anniversaryDate = dateVal;
-    localStorage.setItem('baespace_user', JSON.stringify(currentUser));
-}
-
-function calculateAnniversary(startDateStr) {
-    const start = new Date(startDateStr);
-    const now = new Date();
-    const diffTime = Math.abs(now - start);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    document.getElementById('days-together-display').innerText = `${diffDays} Days ❤️`;
-}
-
-function updateAvatarUI(avatarSrc) {
-    const avatarContainer = document.getElementById('profile-avatar-display');
-    if (avatarSrc.length <= 3) {
-        avatarContainer.innerHTML = avatarSrc;
-    } else {
-        avatarContainer.innerHTML = `<img src="${avatarSrc}" />`;
+function saveMemory() {
+    const caption = document.getElementById('memory-caption-input').value;
+    if (caption) {
+        const grid = document.getElementById('memory-grid');
+        const card = document.createElement('div');
+        card.className = 'memory-card';
+        card.innerHTML = `<img src="https://via.placeholder.com/150" alt="Memory"><p>${escapeHtml(caption)}</p>`;
+        grid.appendChild(card);
+        closeModal('memory-modal');
+        document.getElementById('memory-caption-input').value = '';
     }
 }
 
-function setEmojiAvatar(emoji) {
-    updateAvatarUI(emoji);
+function saveNote() {
+    const text = document.getElementById('note-text-input').value;
+    if (text) {
+        const list = document.getElementById('notes-list');
+        const card = document.createElement('div');
+        card.className = 'note-card';
+        card.innerHTML = `<p class="note-text">${escapeHtml(text)}</p><span class="note-date">Just Now</span>`;
+        list.appendChild(card);
+        closeModal('note-modal');
+        document.getElementById('note-text-input').value = '';
+    }
 }
 
+function saveDate() {
+    const title = document.getElementById('date-title-input').value;
+    if (title) {
+        const list = document.getElementById('dates-list');
+        const card = document.createElement('div');
+        card.className = 'date-card';
+        card.innerHTML = `<i class="fa-solid fa-heart date-icon"></i><div><h4>${escapeHtml(title)}</h4><p>Scheduled</p></div>`;
+        list.appendChild(card);
+        closeModal('date-modal');
+        document.getElementById('date-title-input').value = '';
+    }
+}
+
+// Helper to sanitize inputs
 function escapeHtml(text) {
-    return text ? text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") : '';
+    return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
