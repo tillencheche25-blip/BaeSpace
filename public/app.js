@@ -93,11 +93,16 @@ document.addEventListener('DOMContentLoaded', () => {
             onEmojiSelect: (emoji) => {
                 const input = document.getElementById('msg-input');
                 if (input) input.value += emoji.native;
+                // Auto-hide picker after selecting emoji
+                toggleEmojiPicker(false);
             }
         };
         const picker = new EmojiMart.Picker(pickerOptions);
         const container = document.getElementById('emoji-picker-container');
-        if (container) container.appendChild(picker);
+        if (container) {
+            container.appendChild(picker);
+            container.classList.add('emoji-picker-hidden'); // Ensure it starts hidden
+        }
     } catch (e) {
         console.log("Emoji picker ready.");
     }
@@ -107,6 +112,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (datePicker && datePicker.value) {
         calculateDaysTogether(datePicker.value);
     }
+
+    // Close Emoji Picker on Outside Click
+    document.addEventListener('click', (event) => {
+        const pickerContainer = document.getElementById('emoji-picker-container');
+        const smileBtn = event.target.closest('.chat-input-bar button[onclick="toggleEmojiPicker()"]');
+
+        if (pickerContainer && !pickerContainer.contains(event.target) && !smileBtn) {
+            pickerContainer.classList.add('emoji-picker-hidden');
+        }
+    });
 });
 
 // Auth Flow & Room Allocation
@@ -192,9 +207,17 @@ function switchTab(tabName) {
 }
 
 // Real-Time Messaging Functions
-function toggleEmojiPicker() {
+function toggleEmojiPicker(forceState = null) {
     const container = document.getElementById('emoji-picker-container');
-    if (container) container.classList.toggle('emoji-picker-hidden');
+    if (!container) return;
+
+    if (forceState === false) {
+        container.classList.add('emoji-picker-hidden');
+    } else if (forceState === true) {
+        container.classList.remove('emoji-picker-hidden');
+    } else {
+        container.classList.toggle('emoji-picker-hidden');
+    }
 }
 
 function triggerFileInput() {
@@ -221,8 +244,7 @@ function sendMessage() {
     socket.emit('send_message', { text, time });
 
     input.value = '';
-    const container = document.getElementById('emoji-picker-container');
-    if (container) container.classList.add('emoji-picker-hidden');
+    toggleEmojiPicker(false);
 }
 
 function uploadImage(event) {
