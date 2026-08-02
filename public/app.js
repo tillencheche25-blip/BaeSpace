@@ -10,6 +10,19 @@ const socket = io({
 let isLoginMode = true;
 let isRecording = false;
 
+// WebRTC State Variables
+let peerConnection = null;
+let localStream = null;
+let incomingSignal = null;
+let currentCallType = 'voice';
+
+const rtcConfig = {
+    iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+    ]
+};
+
 // Socket Connection & Automatic Room Sync
 socket.on('connect', () => {
     console.log('Connected to server! Socket ID:', socket.id);
@@ -31,24 +44,19 @@ function joinCoupleRoom() {
 
 // Real-Time Chat Listener
 socket.on('receive_message', (data) => {
-    console.log('Message received from partner:', data);
     appendMessage(data.text, 'received', data.time, data.image);
 });
 
-// Real-Time Profile Listener (Sync Partner Changes)
+// Real-Time Profile Listener
 socket.on('receive_profile_update', (data) => {
-    console.log('Profile update received from partner:', data);
-
     if (data.mood) {
         const moodHeader = document.getElementById('header-mood');
         if (moodHeader) moodHeader.textContent = data.mood;
     }
-
     if (data.avatar) {
         const headerAvatar = document.getElementById('header-avatar');
         if (headerAvatar) headerAvatar.src = data.avatar;
     }
-
     if (data.anniversary) {
         const datePicker = document.getElementById('anniversary-picker');
         if (datePicker) datePicker.value = data.anniversary;
@@ -56,22 +64,49 @@ socket.on('receive_profile_update', (data) => {
     }
 });
 
-// Real-Time Room Feature Listeners (Memories, Notes, Dates)
-socket.on('receive_memory', (data) => {
-    renderMemoryCard(data.caption, data.imageSrc);
+// Real-Time Room Feature Listeners
+socket.on('receive_memory', (data) => renderMemoryCard(data.caption, data.imageSrc));
+socket.on('receive_note', (data) => renderNoteCard(data.text, data.date));
+socket.on('receive_date', (data) => renderDateCard(data.title, data.scheduledTime));
+
+// WebRTC WebSockets Signaling Listeners
+socket.on('incoming_call', async (data) => {
+    incomingSignal = data.signal;
+    currentCallType = data.callType;
+
+    const statusTitle = document.getElementById('call-status-title');
+    const acceptBtn = document.getElementById('accept-call-btn');
+    if (statusTitle) statusTitle.textContent = `Incoming ${data.callType} call...`;
+    if (acceptBtn) acceptBtn.style.display = 'inline-block';
+
+    openModal('call-modal');
 });
 
-socket.on('receive_note', (data) => {
-    renderNoteCard(data.text, data.date);
+socket.on('call_accepted', async (data) => {
+    const statusTitle = document.getElementById('call-status-title');
+    if (statusTitle) statusTitle.textContent = 'Connected';
+
+    if (peerConnection) {
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(data.signal));
+    }
 });
 
-socket.on('receive_date', (data) => {
-    renderDateCard(data.title, data.scheduledTime);
+socket.on('ice_candidate', async (data) => {
+    try {
+        if (peerConnection) {
+            await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+        }
+    } catch (e) {
+        console.error('Error adding ICE candidate', e);
+    }
+});
+
+socket.on('call_ended', () => {
+    cleanupCall();
 });
 
 // Initialize App & Authentication Check
 document.addEventListener('DOMContentLoaded', () => {
-    // Check session state for login modal
     const isLoggedIn = localStorage.getItem('bae_logged_in');
     const authContainer = document.getElementById('auth-container');
 
@@ -87,13 +122,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Initialize Emoji Picker
     try {
         const pickerOptions = {
             onEmojiSelect: (emoji) => {
                 const input = document.getElementById('msg-input');
                 if (input) input.value += emoji.native;
-                // Auto-hide picker after selecting emoji
                 toggleEmojiPicker(false);
             }
         };
@@ -101,19 +134,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const container = document.getElementById('emoji-picker-container');
         if (container) {
             container.appendChild(picker);
-            container.classList.add('emoji-picker-hidden'); // Ensure it starts hidden
+            container.classList.add('emoji-picker-hidden');
         }
     } catch (e) {
         console.log("Emoji picker ready.");
     }
 
-    // Load saved anniversary date if available
     const datePicker = document.getElementById('anniversary-picker');
     if (datePicker && datePicker.value) {
         calculateDaysTogether(datePicker.value);
     }
 
-    // Close Emoji Picker on Outside Click
     document.addEventListener('click', (event) => {
         const pickerContainer = document.getElementById('emoji-picker-container');
         const smileBtn = event.target.closest('.chat-input-bar button[onclick="toggleEmojiPicker()"]');
@@ -124,7 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// Auth Flow & Room Allocation
+// Auth Flow
 function toggleAuthMode(event) {
     if (event) event.preventDefault();
     isLoginMode = !isLoginMode;
@@ -155,18 +186,14 @@ function toggleAuthMode(event) {
 
 function handleAuth(event) {
     event.preventDefault();
-
     const pairInput = document.getElementById('auth-pair-input');
     const pairCode = (pairInput && pairInput.value.trim()) ? pairInput.value.trim() : 'secret-pair-123';
 
-    // Store login session
     localStorage.setItem('bae_logged_in', 'true');
     localStorage.setItem('bae_pair_code', pairCode);
 
-    // Join room
     socket.emit('join_room', { roomId: pairCode });
 
-    // Hide Login Overlay
     const authContainer = document.getElementById('auth-container');
     if (authContainer) {
         authContainer.classList.add('hidden');
@@ -206,7 +233,7 @@ function switchTab(tabName) {
     }
 }
 
-// Real-Time Messaging Functions
+// Chat Functions
 function toggleEmojiPicker(forceState = null) {
     const container = document.getElementById('emoji-picker-container');
     if (!container) return;
@@ -226,9 +253,7 @@ function triggerFileInput() {
 }
 
 function handleKeyPress(event) {
-    if (event.key === 'Enter') {
-        sendMessage();
-    }
+    if (event.key === 'Enter') sendMessage();
 }
 
 function sendMessage() {
@@ -253,7 +278,6 @@ function uploadImage(event) {
         const reader = new FileReader();
         reader.onload = function (e) {
             const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
             appendMessage('', 'sent', time, e.target.result);
             socket.emit('send_message', { text: '', time, image: e.target.result });
         };
@@ -271,12 +295,8 @@ function appendMessage(text, type, time, imageSrc = null) {
     const checkmark = type === 'sent' ? ' <i class="fa-solid fa-check-double read-receipt"></i>' : '';
     let content = '';
 
-    if (imageSrc) {
-        content += `<img src="${imageSrc}" alt="Sent image">`;
-    }
-    if (text) {
-        content += `<p>${escapeHtml(text)}</p>`;
-    }
+    if (imageSrc) content += `<img src="${imageSrc}" alt="Sent image">`;
+    if (text) content += `<p>${escapeHtml(text)}</p>`;
     content += `<span class="timestamp">${time}${checkmark}</span>`;
 
     msgElement.innerHTML = content;
@@ -295,26 +315,114 @@ function toggleVoiceRecord() {
     }
 }
 
-function initiateCall(type) {
-    alert(`Starting ${type} call with your partner...`);
+// WebRTC Voice & Video Calling Logic
+async function initiateCall(type) {
+    currentCallType = type;
+    const statusTitle = document.getElementById('call-status-title');
+    const acceptBtn = document.getElementById('accept-call-btn');
+
+    if (statusTitle) statusTitle.textContent = `Calling partner (${type})...`;
+    if (acceptBtn) acceptBtn.style.display = 'none';
+
+    openModal('call-modal');
+    await startLocalStream(type === 'video');
+
+    peerConnection = createPeerConnection();
+    localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+    const offer = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offer);
+
+    socket.emit('call_user', { signal: offer, callType: type });
 }
 
-// Helper Function for Profile Socket Transmission
+async function acceptIncomingCall() {
+    const acceptBtn = document.getElementById('accept-call-btn');
+    const statusTitle = document.getElementById('call-status-title');
+
+    if (acceptBtn) acceptBtn.style.display = 'none';
+    if (statusTitle) statusTitle.textContent = 'Connecting...';
+
+    await startLocalStream(currentCallType === 'video');
+
+    peerConnection = createPeerConnection();
+    localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+    await peerConnection.setRemoteDescription(new RTCSessionDescription(incomingSignal));
+    const answer = await peerConnection.createAnswer();
+    await peerConnection.setLocalDescription(answer);
+
+    socket.emit('answer_call', { signal: answer });
+}
+
+function createPeerConnection() {
+    const pc = new RTCPeerConnection(rtcConfig);
+
+    pc.onicecandidate = (event) => {
+        if (event.candidate) {
+            socket.emit('ice_candidate', { candidate: event.candidate });
+        }
+    };
+
+    pc.ontrack = (event) => {
+        const remoteVideo = document.getElementById('remote-video');
+        if (remoteVideo && event.streams[0]) {
+            remoteVideo.srcObject = event.streams[0];
+        }
+    };
+
+    return pc;
+}
+
+async function startLocalStream(isVideo) {
+    try {
+        localStream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+            video: isVideo
+        });
+        const localVideo = document.getElementById('local-video');
+        if (localVideo) localVideo.srcObject = localStream;
+    } catch (err) {
+        console.error("Media devices access error:", err);
+        alert("Could not access camera/microphone");
+    }
+}
+
+function endCall() {
+    socket.emit('end_call');
+    cleanupCall();
+}
+
+function cleanupCall() {
+    if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+    }
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+    }
+    const localVideo = document.getElementById('local-video');
+    const remoteVideo = document.getElementById('remote-video');
+    if (localVideo) localVideo.srcObject = null;
+    if (remoteVideo) remoteVideo.srcObject = null;
+
+    closeModal('call-modal');
+}
+
+// Profile Sync Functions
 function syncProfileUpdate(updateData) {
     if (socket.connected) {
         socket.emit('update_profile', updateData);
     } else {
-        console.warn('Socket not connected, retrying socket connection...');
         socket.connect();
         setTimeout(() => socket.emit('update_profile', updateData), 500);
     }
 }
 
-// Profile Customization & Days Counter
 function setMood(emoji) {
     const moodHeader = document.getElementById('header-mood');
     if (moodHeader) moodHeader.textContent = emoji;
-
     syncProfileUpdate({ mood: emoji });
 }
 
@@ -326,17 +434,13 @@ function saveAnniversary(event) {
 
 function calculateDaysTogether(startDateStr) {
     if (!startDateStr) return;
-
     const startDate = new Date(startDateStr);
     const today = new Date();
-
     const diffTime = Math.abs(today - startDate);
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
     const displayElement = document.getElementById('days-together-count');
-    if (displayElement) {
-        displayElement.textContent = diffDays;
-    }
+    if (displayElement) displayElement.textContent = diffDays;
 }
 
 function triggerAvatarUpload() {
@@ -350,19 +454,17 @@ function uploadCustomAvatar(event) {
         const reader = new FileReader();
         reader.onload = function (e) {
             const avatarData = e.target.result;
-
             const headerAvatar = document.getElementById('header-avatar');
             const profileAvatar = document.getElementById('profile-avatar');
             if (headerAvatar) headerAvatar.src = avatarData;
             if (profileAvatar) profileAvatar.src = avatarData;
-
             syncProfileUpdate({ avatar: avatarData });
         };
         reader.readAsDataURL(file);
     }
 }
 
-// Modals & Feature Syncing
+// Modals & Cards
 function openModal(id) {
     const modal = document.getElementById(id);
     if (modal) modal.classList.add('active');
@@ -381,7 +483,6 @@ function saveMemory() {
     const caption = captionInput.value;
     if (caption) {
         let imageSrc = `https://api.dicebear.com/7.x/shapes/svg?seed=${encodeURIComponent(caption)}`;
-
         if (imageInput && imageInput.files && imageInput.files[0]) {
             const reader = new FileReader();
             reader.onload = function (e) {
@@ -394,7 +495,6 @@ function saveMemory() {
             renderMemoryCard(caption, imageSrc);
             socket.emit('add_memory', { caption, imageSrc });
         }
-
         closeModal('memory-modal');
         captionInput.value = '';
         if (imageInput) imageInput.value = '';
@@ -420,7 +520,6 @@ function saveNote() {
         const date = "Just Now";
         renderNoteCard(text, date);
         socket.emit('add_note', { text, date });
-
         closeModal('note-modal');
         noteInput.value = '';
     }
@@ -446,7 +545,6 @@ function saveDate() {
         const scheduledTime = timeInput && timeInput.value ? timeInput.value : "Scheduled";
         renderDateCard(title, scheduledTime);
         socket.emit('add_date', { title, scheduledTime });
-
         closeModal('date-modal');
         titleInput.value = '';
         if (timeInput) timeInput.value = '';
