@@ -73,7 +73,7 @@ socket.on('room_access_granted', (data) => {
     const titleElem = document.getElementById('current-room-title');
     const statusElem = document.getElementById('room-status');
 
-    if (titleElem) titleElem.innerText = `BaeSpace [${data.roomId}]`;
+    if (titleElem) titleElem.innerText = `HeartSync [${data.roomId}]`;
     if (statusElem) statusElem.innerText = 'Connected & Encrypted';
 
     hideAuthModal();

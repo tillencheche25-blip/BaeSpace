@@ -15,19 +15,17 @@ const io = new Server(server, {
 
 app.use(express.static('public'));
 
-// --- 1. Database Connection & Stale Index Cleanup ---
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/baespace';
+// --- 1. Database Connection & Index Cleanup ---
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/heartsync';
 
 mongoose.connect(MONGO_URI)
     .then(async () => {
         console.log(' Connected to MongoDB Database');
 
-        // Auto-drop the old 'username_1' index if it exists in MongoDB
         try {
             await mongoose.connection.collection('users').dropIndex('username_1');
             console.log(' Successfully dropped legacy username_1 index');
         } catch (err) {
-            // If the index doesn't exist, ignore the error
             if (err.code !== 27 && err.codeName !== 'IndexNotFound') {
                 console.log(' Index cleanup status:', err.message);
             }
@@ -163,5 +161,5 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-    console.log(` BaeSpace server running on port ${PORT}`);
+    console.log(` HeartSync server running on port ${PORT}`);
 });
