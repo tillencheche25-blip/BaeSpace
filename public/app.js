@@ -57,7 +57,6 @@ function handleSignUp() {
 function handleLogin() {
     const email = document.getElementById('auth-email').value;
     const password = document.getElementById('auth-password').value;
-    const roomCode = document.getElementById('auth-room-code').value;
 
     if (!email.trim() || !password.trim()) {
         alert('Please enter your credentials.');
@@ -65,22 +64,17 @@ function handleLogin() {
     }
 
     socket.emit('user_login', { email, password });
-
-    if (roomCode.trim()) {
-        currentRoomId = roomCode.trim();
-    }
 }
 
 // --- Socket Event Handlers ---
 socket.on('auth_success', (data) => {
     currentUser = data.user;
 
-    const password = document.getElementById('auth-password').value;
-    const roomCode = document.getElementById('auth-room-code').value || 'default_room';
+    const roomCodeInput = document.getElementById('auth-room-code');
+    const roomCode = (roomCodeInput && roomCodeInput.value.trim()) ? roomCodeInput.value.trim() : 'default_room';
 
     socket.emit('join_partner_room', {
         userEmail: currentUser.email,
-        password: password,
         targetRoomId: roomCode
     });
 });
@@ -91,8 +85,12 @@ socket.on('auth_error', (msg) => {
 
 socket.on('room_access_granted', (data) => {
     currentRoomId = data.roomId;
-    document.getElementById('current-room-title').innerText = `BaeSpace [${data.roomId}]`;
-    document.getElementById('room-status').innerText = 'Connected & Encrypted';
+    const titleElem = document.getElementById('current-room-title');
+    const statusElem = document.getElementById('room-status');
+
+    if (titleElem) titleElem.innerText = `BaeSpace [${data.roomId}]`;
+    if (statusElem) statusElem.innerText = 'Connected & Encrypted';
+
     hideAuthModal();
 });
 
@@ -124,6 +122,8 @@ function sendMessage() {
 // Render message with exact sent vs received alignment check
 socket.on('receive_message', (data) => {
     const container = document.getElementById('messages-container');
+    if (!container) return;
+
     const msgDiv = document.createElement('div');
 
     const currentEmail = currentUser && currentUser.email ? currentUser.email.toLowerCase().trim() : '';

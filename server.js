@@ -57,18 +57,15 @@ io.on('connection', (socket) => {
 
             const cleanEmail = email.toLowerCase().trim();
 
-            // Check if email already exists in DB
             const existingUser = await User.findOne({ email: cleanEmail });
             if (existingUser) {
                 return socket.emit('auth_error', 'An account with this email already exists.');
             }
 
-            // Minimum password length check
             if (password.toString().length < 4) {
                 return socket.emit('auth_error', 'Password must be at least 4 characters long.');
             }
 
-            // Hash password securely
             const hashedPassword = await bcrypt.hash(password.toString(), 10);
 
             const newUser = new User({
@@ -83,7 +80,6 @@ io.on('connection', (socket) => {
         } catch (err) {
             console.error('Signup Error Details:', err);
 
-            // Handle MongoDB duplicate key error specifically
             if (err.code === 11000) {
                 return socket.emit('auth_error', 'An account with this email already exists.');
             }
