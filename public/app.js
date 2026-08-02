@@ -4,6 +4,7 @@ let currentUser = null;
 let currentRoomId = null;
 let isSignUpMode = false;
 
+// --- Modal Controls ---
 function showAuthModal() {
     document.getElementById('auth-modal').classList.add('active');
 }
@@ -13,23 +14,34 @@ function hideAuthModal() {
 }
 
 function toggleAuthMode(e) {
-    e.preventDefault();
+    if (e) e.preventDefault();
     isSignUpMode = !isSignUpMode;
+
     const btn = document.getElementById('auth-submit-btn');
     const toggleText = document.getElementById('auth-toggle-text');
+    const toggleLink = document.getElementById('auth-toggle-link');
 
     if (isSignUpMode) {
         btn.innerText = 'Sign Up';
         btn.setAttribute('onclick', 'handleSignUp()');
         toggleText.innerText = 'Already have an account?';
+        if (toggleLink) toggleLink.innerText = 'Log In';
     } else {
         btn.innerText = 'Log In';
         btn.setAttribute('onclick', 'handleLogin()');
         toggleText.innerText = "Don't have an account?";
+        if (toggleLink) toggleLink.innerText = 'Sign Up';
     }
 }
 
-// Handle Sign Up
+// --- Keyboard Shortcuts ---
+function handleKeyPress(e) {
+    if (e.key === 'Enter') {
+        sendMessage();
+    }
+}
+
+// --- Auth Handlers ---
 function handleSignUp() {
     const email = document.getElementById('auth-email').value;
     const password = document.getElementById('auth-password').value;
@@ -42,7 +54,6 @@ function handleSignUp() {
     socket.emit('user_signup', { email, password });
 }
 
-// Handle Log In
 function handleLogin() {
     const email = document.getElementById('auth-email').value;
     const password = document.getElementById('auth-password').value;
@@ -55,17 +66,15 @@ function handleLogin() {
 
     socket.emit('user_login', { email, password });
 
-    // Store room code to join right after login completes
     if (roomCode.trim()) {
         currentRoomId = roomCode.trim();
     }
 }
 
-// Auth Success Response
+// --- Socket Handlers ---
 socket.on('auth_success', (data) => {
     currentUser = data.user;
 
-    // Auto-join room with password validation if room code was supplied
     const password = document.getElementById('auth-password').value;
     const roomCode = document.getElementById('auth-room-code').value || 'default_room';
 
@@ -80,7 +89,6 @@ socket.on('auth_error', (msg) => {
     alert(msg);
 });
 
-// Room Verification Response
 socket.on('room_access_granted', (data) => {
     currentRoomId = data.roomId;
     document.getElementById('current-room-title').innerText = `BaeSpace [${data.roomId}]`;
@@ -92,13 +100,14 @@ socket.on('room_error', (msg) => {
     alert(msg);
 });
 
-// Messaging
+// --- Messaging Handlers ---
 function sendMessage() {
     const input = document.getElementById('chat-input');
     const message = input.value.trim();
 
     if (!currentUser || !currentRoomId) {
         alert('Please log in to your space first.');
+        showAuthModal();
         return;
     }
 
@@ -113,17 +122,35 @@ function sendMessage() {
     }
 }
 
+// WhatsApp-style message rendering
 socket.on('receive_message', (data) => {
     const container = document.getElementById('messages-container');
     const msgDiv = document.createElement('div');
     const isSent = currentUser && data.senderEmail === currentUser.email;
 
     msgDiv.className = `msg ${isSent ? 'sent' : 'received'}`;
+
     msgDiv.innerHTML = `
-        <div>${data.message}</div>
-        <span class="timestamp">${data.timestamp}</span>
+        <span class="msg-text">${escapeHTML(data.message)}</span>
+        <span class="msg-meta">
+            <span class="timestamp">${data.timestamp}</span>
+            ${isSent ? '<span class="ticks">✓✓</span>' : ''}
+        </span>
     `;
 
     container.appendChild(msgDiv);
     container.scrollTop = container.scrollHeight;
 });
+
+// Utility
+function escapeHTML(str) {
+    return str.replace(/[&<>'"]/g,
+        tag => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            "'": '&#39;',
+            '"': '&quot;'
+        }[tag] || tag)
+    );
+}

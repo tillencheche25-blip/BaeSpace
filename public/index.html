@@ -3,10 +3,9 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>BaeSpace</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="/socket.io/socket.io.js"></script>
+    <link rel="stylesheet" href="style.css?v=5">
 </head>
 
 <body>
@@ -18,11 +17,11 @@
                 <div class="avatar-small"></div>
                 <div>
                     <h4 id="current-room-title">BaeSpace</h4>
-                    <span class="status-online" id="room-status">Not Authenticated</span>
+                    <span class="status-online" id="room-status">Connected & Encrypted</span>
                 </div>
             </div>
             <div class="header-actions">
-                <button class="icon-btn" onclick="showAuthModal()">🔑</button>
+                <button class="icon-btn" title="Security Settings" onclick="showAuthModal()">🔑</button>
             </div>
         </header>
 
@@ -30,43 +29,46 @@
         <main class="main-content">
             <div class="screen-view active" id="chat-screen">
                 <div class="messages-area" id="messages-container">
-                    <!-- Dynamic Messages -->
+                    <!-- Dynamic WhatsApp Messages -->
                 </div>
 
                 <div class="chat-input-bar">
-                    <input type="text" id="chat-input" placeholder="Type a message...">
+                    <input type="text" id="chat-input" placeholder="Type a message..."
+                        onkeypress="handleKeyPress(event)">
                     <button class="send-btn" onclick="sendMessage()">➤</button>
                 </div>
             </div>
         </main>
     </div>
 
-    <!-- Auth / Login Modal -->
+    <!-- Auth Modal -->
     <div id="auth-modal" class="auth-overlay active">
         <div class="auth-box">
             <h2>BaeSpace</h2>
-            <p style="font-size: 0.85rem; color: #aaa; margin-bottom: 15px;">Connect privately with your partner</p>
+            <p style="font-size: 0.85rem; color: #a0a5ba; margin-bottom: 12px;">Connect privately with your partner</p>
 
             <div class="input-group">
-                <input type="email" id="auth-email" placeholder="Email Address" required>
+                <input type="email" id="auth-email" placeholder="Email Address">
             </div>
             <div class="input-group">
-                <input type="password" id="auth-password" placeholder="Password" required>
+                <input type="password" id="auth-password" placeholder="Password">
             </div>
             <div class="input-group">
-                <input type="text" id="auth-room-code" placeholder="Shared Room Code (e.g. bae123)">
+                <input type="text" id="auth-room-code" placeholder="Shared Room Code (e.g. 1111)">
             </div>
 
             <button class="primary-btn" id="auth-submit-btn" onclick="handleLogin()">Log In</button>
 
-            <p style="margin-top: 15px; font-size: 0.85rem; color: #ccc;">
+            <p style="margin-top: 14px; font-size: 0.85rem; color: #a0a5ba;">
                 <span id="auth-toggle-text">Don't have an account?</span>
-                <a href="#" style="color: #4a90e2;" onclick="toggleAuthMode(event)">Sign Up</a>
+                <a href="#" id="auth-toggle-link" style="color: #ff2a75; font-weight: 600;"
+                    onclick="toggleAuthMode(event)">Sign Up</a>
             </p>
         </div>
     </div>
 
-    <script src="app.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="app.js?v=5"></script>
 </body>
 
 </html>
