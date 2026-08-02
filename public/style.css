@@ -1,124 +1,47 @@
-/* ==========================================================================
-   1. GLOBAL STYLES & CORE VARIABLES
-   ========================================================================== */
-:root {
-    --primary-color: #ff4b72;
-    --primary-hover: #e03e61;
-    --bg-dark: #12181f;
-    --card-bg: #1e2630;
-    --card-hover: #263240;
-    --text-color: #f1f5f9;
-    --text-muted: #94a3b8;
-    --border-color: #2e3a4b;
-    --input-bg: #0f141c;
-    --danger-color: #ef4444;
-    --nav-height: 65px;
-    --header-height: 60px;
-    --radius-sm: 8px;
-    --radius-md: 12px;
-    --radius-lg: 20px;
-}
-
 * {
+    box-sizing: border-box;
     margin: 0;
     padding: 0;
-    box-sizing: border-box;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Use dynamic viewport height (dvh) to account for mobile browser bars */
+html,
+body {
+    height: 100%;
+    width: 100%;
+    background-color: #f0f2f5;
+    overflow: hidden;
+    /* Prevents whole-page bouncing on mobile */
 }
 
 body {
-    background-color: var(--bg-dark);
-    color: var(--text-color);
-    height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
-    overflow: hidden;
 }
 
-/* Base Utility Classes */
-.hidden {
-    display: none !important;
-}
-
-/* Button Reset & Common Styles */
-button {
-    border: none;
-    outline: none;
-    cursor: pointer;
-    border-radius: var(--radius-sm);
-    transition: all 0.2s ease;
-}
-
-.primary-btn {
-    background-color: var(--primary-color);
-    color: white;
-    padding: 10px 20px;
-    font-weight: 600;
-}
-
-.primary-btn:hover {
-    background-color: var(--primary-hover);
-}
-
-.primary-btn-sm {
-    background-color: var(--primary-color);
-    color: white;
-    padding: 6px 12px;
-    font-size: 0.85rem;
-    font-weight: 600;
-}
-
-.secondary-btn {
-    background-color: #334155;
-    color: var(--text-color);
-    padding: 10px 20px;
-}
-
-.secondary-btn:hover {
-    background-color: #475569;
-}
-
-.danger-btn {
-    background-color: var(--danger-color);
-    color: white;
-    padding: 10px 20px;
-}
-
-.icon-btn {
-    background: transparent;
-    color: var(--text-muted);
-    font-size: 1.2rem;
-    padding: 8px;
-}
-
-.icon-btn:hover {
-    color: var(--text-color);
-}
-
-/* ==========================================================================
-   2. APP LAYOUT & HEADER
-   ========================================================================== */
 .app-container {
     width: 100%;
     max-width: 480px;
-    height: 100vh;
+    height: 100dvh;
+    /* Dynamic viewport height handles notch & navbar heights */
+    background: #fff;
     display: flex;
     flex-direction: column;
-    background-color: var(--bg-dark);
     position: relative;
-    border-left: 1px solid var(--border-color);
-    border-right: 1px solid var(--border-color);
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
 }
 
 .app-header {
-    height: var(--header-height);
-    background-color: var(--card-bg);
     display: flex;
-    align-items: center;
     justify-content: space-between;
-    padding: 0 16px;
-    border-bottom: 1px solid var(--border-color);
+    align-items: center;
+    padding: 12px 16px;
+    background: #fff;
+    border-bottom: 1px solid #eee;
+    flex-shrink: 0;
+    /* Keeps header fixed at top */
 }
 
 .partner-info {
@@ -132,318 +55,169 @@ button {
     height: 40px;
     border-radius: 50%;
     object-fit: cover;
-    background-color: var(--border-color);
-}
-
-.partner-info h3 {
-    font-size: 1rem;
-    font-weight: 600;
+    background: #f0f0f0;
 }
 
 .status-online {
     font-size: 0.75rem;
-    color: #10b981;
+    color: #4caf50;
 }
 
-/* ==========================================================================
-   3. SCREEN VIEWS & CONTROLS
-   ========================================================================== */
+.header-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.icon-btn {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    color: #e91e63;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    transition: background 0.2s;
+}
+
+.icon-btn:hover {
+    background: #fce4ec;
+}
+
+/* Main Content Area - Scrollable Container */
 .main-content {
     flex: 1;
+    min-height: 0;
+    /* Crucial fix for flexbox children overflow */
     overflow-y: auto;
     position: relative;
+    -webkit-overflow-scrolling: touch;
 }
 
 .screen-view {
     display: none;
-    /* Hide screens by default */
-    height: 100%;
-    width: 100%;
-    flex-direction: column;
-    position: relative;
+    min-height: 100%;
+    padding: 15px;
+    box-sizing: border-box;
 }
 
 .screen-view.active {
-    display: flex !important;
-    /* Display active screen */
-}
-
-.section-header {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px;
-    border-bottom: 1px solid var(--border-color);
+    flex-direction: column;
 }
 
-/* ==========================================================================
-   4. CHAT SCREEN, EMOJI PICKER & INPUTS
-   ========================================================================== */
+/* Chat Screen */
 .messages-area {
     flex: 1;
-    padding: 16px;
+    min-height: 0;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
+    padding-bottom: 10px;
 }
 
 .msg {
-    max-width: 75%;
+    max-width: 80%;
     padding: 10px 14px;
-    border-radius: var(--radius-md);
+    border-radius: 18px;
     font-size: 0.95rem;
+    line-height: 1.4;
     position: relative;
-}
-
-.msg img {
-    max-width: 100%;
-    border-radius: 8px;
-    margin-bottom: 6px;
+    word-wrap: break-word;
 }
 
 .msg.received {
     align-self: flex-start;
-    background-color: var(--card-bg);
-    border-bottom-left-radius: 2px;
+    background: #f1f0f0;
+    color: #333;
+    border-bottom-left-radius: 4px;
 }
 
 .msg.sent {
     align-self: flex-end;
-    background-color: var(--primary-color);
-    color: white;
-    border-bottom-right-radius: 2px;
+    background: #e91e63;
+    color: #fff;
+    border-bottom-right-radius: 4px;
+}
+
+.msg img {
+    max-width: 100%;
+    border-radius: 12px;
+    margin-bottom: 5px;
 }
 
 .timestamp {
-    display: block;
     font-size: 0.65rem;
     opacity: 0.7;
-    margin-top: 4px;
+    display: block;
     text-align: right;
+    margin-top: 4px;
 }
 
 .chat-input-bar {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 12px;
-    background-color: var(--card-bg);
-    border-top: 1px solid var(--border-color);
-    position: relative;
-    z-index: 10;
+    padding: 10px;
+    border-top: 1px solid #eee;
+    background: #fff;
+    flex-shrink: 0;
 }
 
 .chat-input-bar input[type="text"] {
     flex: 1;
-    background-color: var(--input-bg);
-    border: 1px solid var(--border-color);
-    color: var(--text-color);
-    padding: 10px 14px;
+    padding: 10px 15px;
+    border: 1px solid #ddd;
     border-radius: 20px;
     outline: none;
 }
 
 .send-btn {
-    background-color: var(--primary-color);
-    color: white;
+    background: #e91e63;
+    color: #fff;
+    border: none;
     width: 38px;
     height: 38px;
     border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
 }
 
-/* Emoji Picker Overlay & Hidden Classes */
-#emoji-picker-container {
-    position: absolute;
-    bottom: 70px;
-    left: 10px;
-    z-index: 50;
-    transition: all 0.2s ease-in-out;
-}
-
+/* Emoji Picker Popup */
 .emoji-picker-hidden {
     display: none !important;
 }
 
-/* Custom dimensions for Emoji Mart inside small screens */
-em-emoji-picker {
-    --category-icon-size: 16px;
-    --rgb-bg: 30, 38, 48;
-    --rgb-color: 241, 245, 249;
-    --rgb-accent: 255, 75, 114;
-    height: 320px !important;
-    max-width: 320px !important;
-    border-radius: 16px;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
-}
-
-/* ==========================================================================
-   5. FEATURE CARDS & GRIDS (MEMORIES, NOTES, DATES)
-   ========================================================================== */
-.memory-grid-container {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
-    padding: 16px;
-}
-
-.memory-card {
-    background-color: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    overflow: hidden;
-}
-
-.memory-card img {
-    width: 100%;
-    height: 120px;
-    object-fit: cover;
-}
-
-.memory-card p {
-    padding: 8px 12px;
-    font-size: 0.85rem;
-}
-
-.notes-list-container,
-.dates-list-container {
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.note-card,
-.date-card {
-    background-color: var(--card-bg);
-    border: 1px solid var(--border-color);
-    padding: 12px 16px;
-    border-radius: var(--radius-md);
-}
-
-.note-date {
-    display: block;
-    font-size: 0.7rem;
-    color: var(--text-muted);
-    margin-top: 6px;
-}
-
-.date-card {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.date-icon {
-    font-size: 1.4rem;
-    color: var(--primary-color);
-}
-
-/* ==========================================================================
-   6. PROFILE SCREEN & DAYS TOGETHER BADGE
-   ========================================================================== */
-.profile-card {
-    padding: 24px 16px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 16px;
-}
-
-.avatar-upload-wrapper {
-    position: relative;
-    width: 100px;
-    height: 100px;
-}
-
-.avatar-upload-wrapper img {
-    width: 100%;
-    height: 100%;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 3px solid var(--primary-color);
-}
-
-.avatar-edit-btn {
+#emoji-picker-container {
     position: absolute;
-    bottom: 0;
-    right: 0;
-    background-color: var(--primary-color);
-    color: white;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
+    bottom: 60px;
+    left: 10px;
+    z-index: 100;
 }
 
-.days-together-badge {
-    background: linear-gradient(135deg, rgba(255, 75, 114, 0.15) 0%, rgba(255, 75, 114, 0.05) 100%);
-    border: 1px solid rgba(255, 75, 114, 0.3);
-    padding: 10px 20px;
-    border-radius: 20px;
-    width: 100%;
-    max-width: 280px;
-}
-
-.mood-selector {
-    display: flex;
-    gap: 10px;
-}
-
-.mood-selector button {
-    background-color: var(--card-bg);
-    font-size: 1.2rem;
-    padding: 8px 12px;
-}
-
-.setting-item {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.setting-item input {
-    background-color: var(--input-bg);
-    border: 1px solid var(--border-color);
-    color: var(--text-color);
-    padding: 10px;
-    border-radius: var(--radius-sm);
-}
-
-.profile-actions {
-    display: flex;
-    gap: 12px;
-    width: 100%;
-    margin-top: 10px;
-}
-
-.profile-actions button {
-    flex: 1;
-}
-
-/* ==========================================================================
-   7. BOTTOM NAVIGATION
-   ========================================================================== */
+/* Bottom Nav - Fixed at bottom */
 .bottom-nav {
-    height: var(--nav-height);
-    background-color: var(--card-bg);
     display: flex;
     justify-content: space-around;
     align-items: center;
-    border-top: 1px solid var(--border-color);
+    padding: 8px 0;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
+    /* Handles iPhone/Android gesture bar notch */
+    border-top: 1px solid #eee;
+    background: #fff;
+    flex-shrink: 0;
 }
 
 .nav-btn {
-    background: transparent;
-    color: var(--text-muted);
+    background: none;
+    border: none;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 4px;
     font-size: 0.75rem;
+    color: #888;
+    cursor: pointer;
 }
 
 .nav-btn i {
@@ -451,72 +225,138 @@ em-emoji-picker {
 }
 
 .nav-btn.active {
-    color: var(--primary-color);
+    color: #e91e63;
 }
 
-/* ==========================================================================
-   8. MODALS & OVERLAYS
-   ========================================================================== */
+/* Modals & Profile */
 .auth-overlay,
 .modal-overlay {
     position: fixed;
     top: 0;
     left: 0;
-    width: 100vw;
-    height: 100vh;
-    background-color: rgba(0, 0, 0, 0.75);
-    backdrop-filter: blur(4px);
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
     display: none;
-    /* Hide overlays by default */
-    align-items: center;
     justify-content: center;
+    align-items: center;
     z-index: 1000;
+    padding: 15px;
 }
 
-/* Active overlay state */
-.modal-overlay.active,
-.auth-overlay.active {
-    display: flex !important;
+.auth-overlay.active,
+.modal-overlay.active {
+    display: flex;
 }
 
 .auth-box,
 .modal-box {
-    background-color: var(--card-bg);
-    border: 1px solid var(--border-color);
-    padding: 24px;
-    border-radius: var(--radius-lg);
-    width: 90%;
-    max-width: 380px;
+    background: #fff;
+    padding: 25px;
+    border-radius: 16px;
+    width: 100%;
+    max-width: 360px;
+    max-height: 90dvh;
+    overflow-y: auto;
+}
+
+.primary-btn,
+.secondary-btn,
+.danger-btn,
+.primary-btn-sm {
+    padding: 10px 16px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.primary-btn {
+    background: #e91e63;
+    color: #fff;
+    width: 100%;
+    margin-top: 10px;
+}
+
+.secondary-btn {
+    background: #eee;
+    color: #333;
+}
+
+.danger-btn {
+    background: #f44336;
+    color: #fff;
+}
+
+.primary-btn-sm {
+    background: #e91e63;
+    color: #fff;
+    font-size: 0.85rem;
+}
+
+.section-header {
     display: flex;
-    flex-direction: column;
-    gap: 16px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
 }
 
 .input-group {
     display: flex;
     align-items: center;
-    background-color: var(--input-bg);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    padding: 0 12px;
-}
-
-.input-group i {
-    color: var(--text-muted);
+    gap: 10px;
+    border: 1px solid #ddd;
+    padding: 10px;
+    border-radius: 8px;
+    margin-top: 10px;
 }
 
 .input-group input {
-    background: transparent;
     border: none;
-    color: var(--text-color);
-    padding: 12px;
-    width: 100%;
     outline: none;
+    width: 100%;
 }
 
-.modal-actions {
+.avatar-upload-wrapper {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    margin: 0 auto 15px;
+}
+
+.avatar-upload-wrapper img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.avatar-edit-btn {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    background: #e91e63;
+    color: #fff;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.mood-selector {
     display: flex;
-    justify-content: flex-end;
-    gap: 8px;
+    justify-content: space-around;
+    margin: 10px 0 20px;
+}
+
+.mood-selector button {
+    font-size: 1.5rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+.hidden {
+    display: none !important;
 }

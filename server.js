@@ -1,130 +1,131 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-
-// Enable Socket.io with WebSockets fallback & CORS
 const io = new Server(server, {
-    cors: {
-        origin: "*",
-        methods: ["GET", "POST"]
-    },
-    transports: ['websocket', 'polling'],
-    maxHttpBufferSize: 1e7
+    cors: { origin: "*", methods: ["GET", "POST"] }
 });
 
-app.use(express.static(__dirname));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static('public'));
 
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-// Store connected users & room state (profile, memories, notes, dates)
-const roomStates = {};
+// In-memory databases (Replace with MongoDB / PostgreSQL models if needed)
+// Users store: { "email@example.com": { email, password, name, partnerEmail, roomId } }
+const users = {};
+// Rooms store: { "room123": { roomId, members: [email1, email2], messages: [] } }
+const rooms = {};
 
 io.on('connection', (socket) => {
-    console.log(`[Socket Connected] ID: ${socket.id}`);
+    console.log('⚡ User connected:', socket.id);
 
-    // Join room event
-    socket.on('join_room', (data) => {
-        const roomId = (data && data.roomId) ? data.roomId.trim().toLowerCase() : 'secret-pair-123';
+    // --- 1. USER AUTHENTICATION: SIGN UP ---
+    socket.on('user_signup', ({ email, password, name }) => {
+        const cleanEmail = email ? email.trim().toLowerCase() : '';
+        const cleanPass = password ? password.trim() : '';
 
-        // Leave any existing rooms except its own socket ID
-        socket.rooms.forEach(room => {
-            if (room !== socket.id) socket.leave(room);
-        });
+        if (!cleanEmail || !cleanPass) {
+            return socket.emit('auth_error', 'Email and password are required.');
+        }
 
-        socket.join(roomId);
-        socket.currentRoom = roomId;
-        console.log(`[Room Join] Socket ${socket.id} joined room: ${roomId}`);
+        if (users[cleanEmail]) {
+            return socket.emit('auth_error', 'Account already exists. Please log in.');
+        }
 
-        // Initialize room state structure if it doesn't exist
-        if (!roomStates[roomId]) {
-            roomStates[roomId] = {
-                profile: {},
-                memories: [],
-                notes: [],
-                dates: []
+        // Save User Account
+        users[cleanEmail] = {
+            email: cleanEmail,
+            password: cleanPass, // Note: Use bcrypt in production
+            name: name || cleanEmail.split('@')[0],
+            partnerEmail: null,
+            roomId: null
+        };
+
+        console.log(`👤 User Registered: [${cleanEmail}]`);
+        socket.emit('auth_success', { user: users[cleanEmail] });
+    });
+
+    // --- 2. USER AUTHENTICATION: LOG IN ---
+    socket.on('user_login', ({ email, password }) => {
+        const cleanEmail = email ? email.trim().toLowerCase() : '';
+        const cleanPass = password ? password.trim() : '';
+
+        const user = users[cleanEmail];
+
+        if (!user) {
+            return socket.emit('auth_error', 'No account found with this email.');
+        }
+
+        if (user.password !== cleanPass) {
+            return socket.emit('auth_error', 'Incorrect password! Access denied.');
+        }
+
+        console.log(`✅ Logged in: [${cleanEmail}]`);
+        socket.emit('auth_success', { user });
+    });
+
+    // --- 3. SECURE ROOM PAIRING / ENTER ROOM ---
+    socket.on('join_partner_room', ({ userEmail, password, targetRoomId }) => {
+        const cleanEmail = userEmail ? userEmail.trim().toLowerCase() : '';
+        const cleanPass = password ? password.trim() : '';
+        const cleanRoom = targetRoomId ? targetRoomId.trim().toLowerCase() : '';
+
+        const user = users[cleanEmail];
+
+        // Strict Check: User identity & password verification
+        if (!user || user.password !== cleanPass) {
+            return socket.emit('room_error', 'Authentication failed. Incorrect email or password.');
+        }
+
+        // Initialize room if it doesn't exist
+        if (!rooms[cleanRoom]) {
+            rooms[cleanRoom] = {
+                roomId: cleanRoom,
+                members: [],
+                messages: []
             };
         }
 
-        // Confirm room join back to sender
-        socket.emit('room_joined', { roomId });
-
-        // Sync existing room state (profile, memories, notes, dates) to newly joined user
-        const state = roomStates[roomId];
-
-        if (Object.keys(state.profile).length > 0) {
-            socket.emit('receive_profile_update', state.profile);
+        // Max 2 partners per BaeSpace room
+        const room = rooms[cleanRoom];
+        if (!room.members.includes(cleanEmail) && room.members.length >= 2) {
+            return socket.emit('room_error', 'This BaeSpace room is already full!');
         }
 
-        state.memories.forEach(memory => {
-            socket.emit('receive_memory', memory);
+        if (!room.members.includes(cleanEmail)) {
+            room.members.push(cleanEmail);
+        }
+
+        user.roomId = cleanRoom;
+        socket.join(cleanRoom);
+        console.log(`🔒 ${cleanEmail} securely joined BaeSpace room: [${cleanRoom}]`);
+
+        socket.emit('room_access_granted', {
+            roomId: cleanRoom,
+            members: room.members
         });
+    });
 
-        state.notes.forEach(note => {
-            socket.emit('receive_note', note);
+    // --- 4. MESSAGING ---
+    socket.on('send_message', ({ roomId, message, userEmail, userName }) => {
+        const cleanRoom = roomId ? roomId.trim().toLowerCase() : '';
+
+        if (!rooms[cleanRoom]) {
+            return socket.emit('room_error', 'Room connection lost.');
+        }
+
+        io.to(cleanRoom).emit('receive_message', {
+            message,
+            senderEmail: userEmail,
+            senderName: userName,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         });
-
-        state.dates.forEach(date => {
-            socket.emit('receive_date', date);
-        });
-    });
-
-    // Real-time Chat Messaging
-    socket.on('send_message', (data) => {
-        const room = socket.currentRoom || 'secret-pair-123';
-        socket.to(room).emit('receive_message', data);
-    });
-
-    // Real-time Profile Updates (Sync & Save State)
-    socket.on('update_profile', (data) => {
-        const room = socket.currentRoom || 'secret-pair-123';
-
-        if (!roomStates[room]) roomStates[room] = { profile: {}, memories: [], notes: [], dates: [] };
-        roomStates[room].profile = { ...roomStates[room].profile, ...data };
-
-        // Broadcast update to partner in room
-        socket.to(room).emit('receive_profile_update', data);
-    });
-
-    // Real-time Memories Sync
-    socket.on('add_memory', (data) => {
-        const room = socket.currentRoom || 'secret-pair-123';
-        if (!roomStates[room]) roomStates[room] = { profile: {}, memories: [], notes: [], dates: [] };
-
-        roomStates[room].memories.push(data);
-        socket.to(room).emit('receive_memory', data);
-    });
-
-    // Real-time Notes Sync
-    socket.on('add_note', (data) => {
-        const room = socket.currentRoom || 'secret-pair-123';
-        if (!roomStates[room]) roomStates[room] = { profile: {}, memories: [], notes: [], dates: [] };
-
-        roomStates[room].notes.push(data);
-        socket.to(room).emit('receive_note', data);
-    });
-
-    // Real-time Dates Sync
-    socket.on('add_date', (data) => {
-        const room = socket.currentRoom || 'secret-pair-123';
-        if (!roomStates[room]) roomStates[room] = { profile: {}, memories: [], notes: [], dates: [] };
-
-        roomStates[room].dates.push(data);
-        socket.to(room).emit('receive_date', data);
     });
 
     socket.on('disconnect', () => {
-        console.log(`[Socket Disconnected] ID: ${socket.id}`);
+        console.log('User disconnected:', socket.id);
     });
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, '0.0.0.0', () => {
-    console.log(`BaeSpace server live on port ${PORT}`);
-});
+server.listen(PORT, () => console.log(`🚀 BaeSpace Server active on port ${PORT}`));

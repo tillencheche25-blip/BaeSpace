@@ -4,274 +4,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BaeSpace - Private Couple App</title>
-
-    <!-- Font Awesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-    <!-- Emoji Mart -->
-    <script src="https://cdn.jsdelivr.net/npm/emoji-mart@latest/dist/browser.js"></script>
-
-    <!-- Custom Stylesheet -->
-    <link rel="stylesheet" href="/style.css">
+    <title>BaeSpace</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="/socket.io/socket.io.js"></script>
 </head>
 
 <body>
 
-    <!-- Auth / Login Modal Overlay (Shown by default unless user is logged in) -->
-    <div id="auth-container" class="auth-overlay active">
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="partner-info">
+                <div class="avatar-small"></div>
+                <div>
+                    <h4 id="current-room-title">BaeSpace</h4>
+                    <span class="status-online" id="room-status">Not Authenticated</span>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button class="icon-btn" onclick="showAuthModal()">🔑</button>
+            </div>
+        </header>
+
+        <!-- Main Screen -->
+        <main class="main-content">
+            <div class="screen-view active" id="chat-screen">
+                <div class="messages-area" id="messages-container">
+                    <!-- Dynamic Messages -->
+                </div>
+
+                <div class="chat-input-bar">
+                    <input type="text" id="chat-input" placeholder="Type a message...">
+                    <button class="send-btn" onclick="sendMessage()">➤</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Auth / Login Modal -->
+    <div id="auth-modal" class="auth-overlay active">
         <div class="auth-box">
             <h2>BaeSpace</h2>
-            <p id="auth-subtitle">Connect privately with your partner</p>
+            <p style="font-size: 0.85rem; color: #aaa; margin-bottom: 15px;">Connect privately with your partner</p>
 
-            <form onsubmit="handleAuth(event)">
-                <div class="input-group">
-                    <i class="fa-solid fa-envelope"></i>
-                    <input type="email" placeholder="Email Address" required>
-                </div>
-                <div class="input-group">
-                    <i class="fa-solid fa-lock"></i>
-                    <input type="password" placeholder="Password" required>
-                </div>
-                <div class="input-group" id="auth-pair-code" style="display: none;">
-                    <i class="fa-solid fa-heart"></i>
-                    <input type="text" id="auth-pair-input" placeholder="Partner Pair Code (e.g. secret-pair-123)">
-                </div>
+            <div class="input-group">
+                <input type="email" id="auth-email" placeholder="Email Address" required>
+            </div>
+            <div class="input-group">
+                <input type="password" id="auth-password" placeholder="Password" required>
+            </div>
+            <div class="input-group">
+                <input type="text" id="auth-room-code" placeholder="Shared Room Code (e.g. bae123)">
+            </div>
 
-                <button type="submit" id="auth-btn" class="primary-btn">Log In</button>
-            </form>
+            <button class="primary-btn" id="auth-submit-btn" onclick="handleLogin()">Log In</button>
 
-            <p class="toggle-text">
+            <p style="margin-top: 15px; font-size: 0.85rem; color: #ccc;">
                 <span id="auth-toggle-text">Don't have an account?</span>
-                <a href="#" id="auth-toggle-link" onclick="toggleAuthMode(event)">Sign Up</a>
+                <a href="#" style="color: #4a90e2;" onclick="toggleAuthMode(event)">Sign Up</a>
             </p>
         </div>
     </div>
 
-    <!-- Main App Layout -->
-    <div class="app-container">
-
-        <!-- Top App Header -->
-        <header class="app-header">
-            <div class="partner-info">
-                <img id="header-avatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Bae" alt="Partner Avatar"
-                    class="avatar-small">
-                <div>
-                    <h3>My Bae <span id="header-mood">💖</span></h3>
-                    <span class="status-online">Online</span>
-                </div>
-            </div>
-            <div class="header-actions">
-                <button onclick="initiateCall('voice')" class="icon-btn"><i class="fa-solid fa-phone"></i></button>
-                <button onclick="initiateCall('video')" class="icon-btn"><i class="fa-solid fa-video"></i></button>
-            </div>
-        </header>
-
-        <!-- Dynamic Screen Views -->
-        <main class="main-content">
-
-            <!-- 1. CHAT SCREEN -->
-            <section id="chat-screen" class="screen-view active">
-                <div id="messages-container" class="messages-area">
-                    <div class="msg received">
-                        <p>Hey love! Welcome to BaeSpace 💕</p>
-                        <span class="timestamp">10:00 AM</span>
-                    </div>
-                </div>
-
-                <!-- Emoji Picker Popup -->
-                <div id="emoji-picker-container" class="emoji-picker-hidden"></div>
-
-                <!-- Chat Input Bar -->
-                <div class="chat-input-bar">
-                    <button class="icon-btn" onclick="toggleEmojiPicker()"><i
-                            class="fa-regular fa-face-smile"></i></button>
-                    <button class="icon-btn" onclick="triggerFileInput()"><i class="fa-solid fa-paperclip"></i></button>
-                    <input type="file" id="image-upload" accept="image/*" style="display:none;"
-                        onchange="uploadImage(event)">
-
-                    <input type="text" id="msg-input" placeholder="Type a love note..."
-                        onkeypress="handleKeyPress(event)">
-
-                    <button class="icon-btn" id="mic-btn" onclick="toggleVoiceRecord()"><i
-                            class="fa-solid fa-microphone"></i></button>
-                    <button class="send-btn" onclick="sendMessage()"><i class="fa-solid fa-paper-plane"></i></button>
-                </div>
-            </section>
-
-            <!-- 2. MEMORIES SCREEN -->
-            <section id="memories-screen" class="screen-view">
-                <div class="section-header">
-                    <h2>Our Memories</h2>
-                    <button class="primary-btn-sm" onclick="openModal('memory-modal')"><i class="fa-solid fa-plus"></i>
-                        Add</button>
-                </div>
-                <div id="memory-grid" class="memory-grid-container">
-                    <!-- Memory cards will render here -->
-                </div>
-            </section>
-
-            <!-- 3. NOTES SCREEN -->
-            <section id="notes-screen" class="screen-view">
-                <div class="section-header">
-                    <h2>Love Notes</h2>
-                    <button class="primary-btn-sm" onclick="openModal('note-modal')"><i class="fa-solid fa-plus"></i>
-                        Note</button>
-                </div>
-                <div id="notes-list" class="notes-list-container">
-                    <!-- Notes will render here -->
-                </div>
-            </section>
-
-            <!-- 4. DATES SCREEN -->
-            <section id="dates-screen" class="screen-view">
-                <div class="section-header">
-                    <h2>Upcoming Dates</h2>
-                    <button class="primary-btn-sm" onclick="openModal('date-modal')"><i class="fa-solid fa-plus"></i>
-                        Plan</button>
-                </div>
-                <div id="dates-list" class="dates-list-container">
-                    <!-- Dates will render here -->
-                </div>
-            </section>
-
-            <!-- 5. PROFILE SCREEN -->
-            <section id="profile-screen" class="screen-view">
-                <div class="profile-card">
-                    <div class="avatar-upload-wrapper">
-                        <img id="profile-avatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Bae"
-                            alt="Profile Picture">
-                        <button class="avatar-edit-btn" onclick="triggerAvatarUpload()"><i
-                                class="fa-solid fa-camera"></i></button>
-                        <input type="file" id="avatar-upload" accept="image/*" style="display:none;"
-                            onchange="uploadCustomAvatar(event)">
-                    </div>
-
-                    <!-- Days Together Counter Badge -->
-                    <div class="days-together-badge"
-                        style="margin: 15px 0; text-align: center; font-weight: bold; font-size: 1.2rem; color: #e91e63;">
-                        <i class="fa-solid fa-heart" style="color: #e91e63;"></i>
-                        <span id="days-together-count">0</span> Days Together
-                    </div>
-
-                    <h3>Setting Mood</h3>
-                    <div class="mood-selector">
-                        <button onclick="setMood('💖')">💖</button>
-                        <button onclick="setMood('🥰')">🥰</button>
-                        <button onclick="setMood('😴')">😴</button>
-                        <button onclick="setMood('👑')">👑</button>
-                        <button onclick="setMood('🔥')">🔥</button>
-                    </div>
-
-                    <div class="setting-item">
-                        <label for="anniversary-picker">Anniversary Date</label>
-                        <input type="date" id="anniversary-picker" onchange="saveAnniversary(event)">
-                    </div>
-
-                    <div class="profile-actions">
-                        <button class="secondary-btn" onclick="logout()">Log Out</button>
-                        <button class="danger-btn" onclick="deleteAccount()">Delete Account</button>
-                    </div>
-                </div>
-            </section>
-
-        </main>
-
-        <!-- Bottom Navigation Bar -->
-        <nav class="bottom-nav">
-            <button class="nav-btn active" onclick="switchTab('chat')">
-                <i class="fa-solid fa-comments"></i>
-                <span>Chat</span>
-            </button>
-            <button class="nav-btn" onclick="switchTab('memories')">
-                <i class="fa-solid fa-images"></i>
-                <span>Memories</span>
-            </button>
-            <button class="nav-btn" onclick="switchTab('notes')">
-                <i class="fa-solid fa-sticky-note"></i>
-                <span>Notes</span>
-            </button>
-            <button class="nav-btn" onclick="switchTab('dates')">
-                <i class="fa-solid fa-calendar-heart"></i>
-                <span>Dates</span>
-            </button>
-            <button class="nav-btn" onclick="switchTab('profile')">
-                <i class="fa-solid fa-user"></i>
-                <span>Profile</span>
-            </button>
-        </nav>
-
-    </div>
-
-    <!-- Modals -->
-
-    <!-- Add Memory Modal -->
-    <div id="memory-modal" class="modal-overlay">
-        <div class="modal-box">
-            <h3>Add a Memory</h3>
-            <input type="text" id="memory-caption-input" placeholder="Caption or Title">
-            <input type="file" id="memory-image-input" accept="image/*">
-            <div class="modal-actions">
-                <button class="secondary-btn" onclick="closeModal('memory-modal')">Cancel</button>
-                <button class="primary-btn" onclick="saveMemory()">Save</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Add Note Modal -->
-    <div id="note-modal" class="modal-overlay">
-        <div class="modal-box">
-            <h3>Write a Love Note</h3>
-            <textarea id="note-text-input" placeholder="Type your sweet note..."></textarea>
-            <div class="modal-actions">
-                <button class="secondary-btn" onclick="closeModal('note-modal')">Cancel</button>
-                <button class="primary-btn" onclick="saveNote()">Save</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Add Date Modal -->
-    <div id="date-modal" class="modal-overlay">
-        <div class="modal-box">
-            <h3>Plan a Date</h3>
-            <input type="text" id="date-title-input" placeholder="Date Idea (e.g. Dinner & Movie)">
-            <input type="datetime-local" id="date-time-input">
-            <div class="modal-actions">
-                <button class="secondary-btn" onclick="closeModal('date-modal')">Cancel</button>
-                <button class="primary-btn" onclick="saveDate()">Save</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Socket.io Library -->
-    <script src="/socket.io/socket.io.js"></script>
-
-    <!-- Main Application JavaScript -->
-    <script src="/app.js"></script>
+    <script src="app.js"></script>
 </body>
-<!-- Call Modal Overlay -->
-<div id="call-modal" class="modal-overlay">
-    <div class="modal-box call-box" style="text-align: center; max-width: 450px; width: 90%;">
-        <h3 id="call-status-title">Calling...</h3>
-
-        <div class="video-container"
-            style="position: relative; margin: 15px 0; background: #000; height: 250px; border-radius: 12px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
-            <video id="remote-video" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
-            <video id="local-video" autoplay playsinline muted
-                style="position: absolute; bottom: 10px; right: 10px; width: 90px; height: 120px; object-fit: cover; border-radius: 8px; border: 2px solid #fff;"></video>
-        </div>
-
-        <!-- Call Control Buttons -->
-        <div id="call-actions" class="modal-actions" style="justify-content: center; gap: 15px;">
-            <button id="accept-call-btn" class="primary-btn" style="background-color: #2e7d32; display: none;"
-                onclick="acceptIncomingCall()">
-                <i class="fa-solid fa-phone"></i> Accept
-            </button>
-            <button id="hangup-call-btn" class="danger-btn" onclick="endCall()">
-                <i class="fa-solid fa-phone-slash"></i> End
-            </button>
-        </div>
-    </div>
-</div>
 
 </html>
