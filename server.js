@@ -13,18 +13,17 @@ const io = new Server(server, {
     }
 });
 
-// Serve static assets from the public directory
+// Serve static assets from public folder
 app.use(express.static('public'));
 
 // --- 1. Database Connection ---
-// Set your MongoDB Atlas URI in your Render Environment Variables (Key: MONGO_URI)
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/baespace';
 
 mongoose.connect(MONGO_URI)
     .then(() => console.log(' Connected to MongoDB Database'))
     .catch(err => console.error(' MongoDB Connection Error:', err));
 
-// --- 2. Database User Schema ---
+// --- 2. User Database Schema ---
 const userSchema = new mongoose.Schema({
     email: {
         type: String,
@@ -45,7 +44,7 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', userSchema);
 
-// --- 3. Socket.IO Authentication & Chat Relays ---
+// --- 3. Socket.IO Authentication & Chat ---
 io.on('connection', (socket) => {
     console.log(` Client Connected: ${socket.id}`);
 
@@ -57,14 +56,20 @@ io.on('connection', (socket) => {
             }
 
             const cleanEmail = email.toLowerCase().trim();
-            const existingUser = await User.findOne({ email: cleanEmail });
 
+            // Check if email already exists in DB
+            const existingUser = await User.findOne({ email: cleanEmail });
             if (existingUser) {
                 return socket.emit('auth_error', 'An account with this email already exists.');
             }
 
-            // Hash password (salt rounds: 10)
-            const hashedPassword = await bcrypt.hash(password, 10);
+            // Minimum password length check
+            if (password.toString().length < 4) {
+                return socket.emit('auth_error', 'Password must be at least 4 characters long.');
+            }
+
+            // Hash password securely
+            const hashedPassword = await bcrypt.hash(password.toString(), 10);
 
             const newUser = new User({
                 email: cleanEmail,
@@ -72,12 +77,18 @@ io.on('connection', (socket) => {
             });
 
             await newUser.save();
-            console.log(` New account created: ${cleanEmail}`);
+            console.log(` New account registered: ${cleanEmail}`);
 
             socket.emit('auth_success', { user: { email: newUser.email } });
         } catch (err) {
-            console.error('Signup error:', err);
-            socket.emit('auth_error', 'Error creating account. Please try again.');
+            console.error('Signup Error Details:', err);
+
+            // Handle MongoDB duplicate key error specifically
+            if (err.code === 11000) {
+                return socket.emit('auth_error', 'An account with this email already exists.');
+            }
+
+            socket.emit('auth_error', err.message || 'Error creating account. Please try again.');
         }
     });
 
@@ -95,8 +106,7 @@ io.on('connection', (socket) => {
                 return socket.emit('auth_error', 'No account found with this email.');
             }
 
-            // Verify password hash match
-            const isMatch = await bcrypt.compare(password, user.password);
+            const isMatch = await bcrypt.compare(password.toString(), user.password);
             if (!isMatch) {
                 return socket.emit('auth_error', 'Incorrect password.');
             }
@@ -104,16 +114,16 @@ io.on('connection', (socket) => {
             console.log(` User logged in: ${cleanEmail}`);
             socket.emit('auth_success', { user: { email: user.email } });
         } catch (err) {
-            console.error('Login error:', err);
+            console.error('Login Error Details:', err);
             socket.emit('auth_error', 'Error logging in. Please try again.');
         }
     });
 
     // --- ROOM JOINING HANDLER ---
-    socket.on('join_partner_room', ({ userEmail, password, targetRoomId }) => {
+    socket.on('join_partner_room', ({ userEmail, targetRoomId }) => {
         const roomId = targetRoomId || 'default_room';
         socket.join(roomId);
-        console.log(` Socket ${socket.id} joined room: ${roomId}`);
+        console.log(` User ${userEmail || socket.id} joined room: ${roomId}`);
 
         socket.emit('room_access_granted', { roomId });
     });
