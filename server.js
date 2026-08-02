@@ -15,11 +15,24 @@ const io = new Server(server, {
 
 app.use(express.static('public'));
 
-// --- 1. Database Connection ---
+// --- 1. Database Connection & Stale Index Cleanup ---
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/baespace';
 
 mongoose.connect(MONGO_URI)
-    .then(() => console.log(' Connected to MongoDB Database'))
+    .then(async () => {
+        console.log(' Connected to MongoDB Database');
+
+        // Auto-drop the old 'username_1' index if it exists in MongoDB
+        try {
+            await mongoose.connection.collection('users').dropIndex('username_1');
+            console.log(' Successfully dropped legacy username_1 index');
+        } catch (err) {
+            // If the index doesn't exist, ignore the error
+            if (err.code !== 27 && err.codeName !== 'IndexNotFound') {
+                console.log(' Index cleanup status:', err.message);
+            }
+        }
+    })
     .catch(err => console.error(' MongoDB Connection Error:', err));
 
 // --- 2. User Schema ---
@@ -39,7 +52,7 @@ const userSchema = new mongoose.Schema({
         type: Date,
         default: Date.now
     }
-}, { autoIndex: true });
+});
 
 const User = mongoose.model('User', userSchema);
 
@@ -60,7 +73,7 @@ io.on('connection', (socket) => {
             const existingUser = await User.findOne({ email: cleanEmail });
             if (existingUser) {
                 console.log(`[SIGNUP FAIL] Email "${cleanEmail}" already exists in DB.`);
-                return socket.emit('auth_error', `The email ${cleanEmail} is already registered.`);
+                return socket.emit('auth_error', 'An account with this email already exists.');
             }
 
             if (password.toString().length < 4) {
@@ -81,10 +94,8 @@ io.on('connection', (socket) => {
         } catch (err) {
             console.error('Signup Error Details:', err);
 
-            // Handle duplicate key error specifically
             if (err.code === 11000) {
-                const duplicateField = Object.keys(err.keyPattern || {})[0] || 'field';
-                return socket.emit('auth_error', `Duplicate error on field: ${duplicateField}. Try dropping DB indexes.`);
+                return socket.emit('auth_error', 'An account with this email already exists.');
             }
 
             socket.emit('auth_error', err.message || 'Error creating account.');
@@ -105,7 +116,7 @@ io.on('connection', (socket) => {
 
             if (!user) {
                 console.log(`[LOGIN FAIL] No user found for "${cleanEmail}"`);
-                return socket.emit('auth_error', `No account found for "${cleanEmail}". Please Sign Up first.`);
+                return socket.emit('auth_error', 'No account found with this email.');
             }
 
             const isMatch = await bcrypt.compare(password.toString(), user.password);
