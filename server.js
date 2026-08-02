@@ -39,7 +39,7 @@ const userSchema = new mongoose.Schema({
         type: Date,
         default: Date.now
     }
-});
+}, { autoIndex: true });
 
 const User = mongoose.model('User', userSchema);
 
@@ -60,7 +60,7 @@ io.on('connection', (socket) => {
             const existingUser = await User.findOne({ email: cleanEmail });
             if (existingUser) {
                 console.log(`[SIGNUP FAIL] Email "${cleanEmail}" already exists in DB.`);
-                return socket.emit('auth_error', 'An account with this email already exists.');
+                return socket.emit('auth_error', `The email ${cleanEmail} is already registered.`);
             }
 
             if (password.toString().length < 4) {
@@ -80,10 +80,14 @@ io.on('connection', (socket) => {
             socket.emit('auth_success', { user: { email: newUser.email } });
         } catch (err) {
             console.error('Signup Error Details:', err);
+
+            // Handle duplicate key error specifically
             if (err.code === 11000) {
-                return socket.emit('auth_error', 'An account with this email already exists.');
+                const duplicateField = Object.keys(err.keyPattern || {})[0] || 'field';
+                return socket.emit('auth_error', `Duplicate error on field: ${duplicateField}. Try dropping DB indexes.`);
             }
-            socket.emit('auth_error', err.message || 'Error creating account. Please try again.');
+
+            socket.emit('auth_error', err.message || 'Error creating account.');
         }
     });
 
@@ -101,7 +105,7 @@ io.on('connection', (socket) => {
 
             if (!user) {
                 console.log(`[LOGIN FAIL] No user found for "${cleanEmail}"`);
-                return socket.emit('auth_error', 'No account found with this email.');
+                return socket.emit('auth_error', `No account found for "${cleanEmail}". Please Sign Up first.`);
             }
 
             const isMatch = await bcrypt.compare(password.toString(), user.password);
@@ -114,7 +118,7 @@ io.on('connection', (socket) => {
             socket.emit('auth_success', { user: { email: user.email } });
         } catch (err) {
             console.error('Login Error Details:', err);
-            socket.emit('auth_error', 'Error logging in. Please try again.');
+            socket.emit('auth_error', 'Error logging in.');
         }
     });
 
