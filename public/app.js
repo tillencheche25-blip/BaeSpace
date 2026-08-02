@@ -115,18 +115,21 @@ function sendMessage() {
         socket.emit('send_message', {
             roomId: currentRoomId,
             message,
-            userEmail: currentUser.email,
-            userName: currentUser.name
+            userEmail: currentUser.email
         });
         input.value = '';
     }
 }
 
-// Render message with distinct sent vs received classes
+// Render message with exact sent vs received alignment check
 socket.on('receive_message', (data) => {
     const container = document.getElementById('messages-container');
     const msgDiv = document.createElement('div');
-    const isSent = currentUser && data.senderEmail === currentUser.email;
+
+    const currentEmail = currentUser && currentUser.email ? currentUser.email.toLowerCase().trim() : '';
+    const senderEmail = data.senderEmail ? data.senderEmail.toLowerCase().trim() : '';
+
+    const isSent = currentEmail !== '' && currentEmail === senderEmail;
 
     msgDiv.className = `msg ${isSent ? 'sent' : 'received'}`;
 

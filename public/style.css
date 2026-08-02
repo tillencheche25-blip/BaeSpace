@@ -151,7 +151,7 @@ body {
     height: 100%;
 }
 
-/* Chat Stream */
+/* Chat Stream Container */
 .messages-area {
     flex: 1;
     min-height: 0;
@@ -172,7 +172,7 @@ body {
     border-radius: 10px;
 }
 
-/* WhatsApp-style Message Bubbles Base */
+/* Base Message Bubbles */
 .msg {
     max-width: 78%;
     padding: 8px 12px;
@@ -202,7 +202,7 @@ body {
 
 /* RECEIVED MESSAGES: Left-aligned, Dark Slate */
 .msg.received {
-    align-self: flex-start;
+    align-self: flex-start !important;
     background: #202c33;
     color: #e9edef;
     border-top-left-radius: 2px;
@@ -215,7 +215,7 @@ body {
 
 /* SENT MESSAGES: Right-aligned, Gradient Pink */
 .msg.sent {
-    align-self: flex-end;
+    align-self: flex-end !important;
     background: linear-gradient(135deg, #ff2a75 0%, #d81b60 100%);
     color: #ffffff;
     border-top-right-radius: 2px;
@@ -251,7 +251,7 @@ body {
     user-select: none;
 }
 
-/* Bottom Chat Bar */
+/* Bottom Input Bar */
 .chat-input-bar {
     display: flex;
     align-items: center;
@@ -294,7 +294,7 @@ body {
     box-shadow: 0 0 15px var(--accent-glow);
 }
 
-/* Auth Modal */
+/* Auth Modal Overlay */
 .auth-overlay {
     position: fixed;
     top: 0;
