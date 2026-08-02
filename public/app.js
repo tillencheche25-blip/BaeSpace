@@ -71,7 +71,7 @@ function handleLogin() {
     }
 }
 
-// --- Socket Handlers ---
+// --- Socket Event Handlers ---
 socket.on('auth_success', (data) => {
     currentUser = data.user;
 
@@ -122,7 +122,7 @@ function sendMessage() {
     }
 }
 
-// WhatsApp-style message rendering
+// Render message with distinct sent vs received classes
 socket.on('receive_message', (data) => {
     const container = document.getElementById('messages-container');
     const msgDiv = document.createElement('div');

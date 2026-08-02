@@ -151,14 +151,14 @@ body {
     height: 100%;
 }
 
-/* WhatsApp-Style Chat Stream */
+/* Chat Stream */
 .messages-area {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
     padding: 16px;
     -webkit-overflow-scrolling: touch;
 }
@@ -172,20 +172,19 @@ body {
     border-radius: 10px;
 }
 
-/* WhatsApp Bubble Formatting */
+/* WhatsApp-style Message Bubbles Base */
 .msg {
     max-width: 78%;
     padding: 8px 12px;
-    border-radius: 12px;
+    border-radius: 14px;
     font-size: 0.92rem;
     line-height: 1.4;
-    position: relative;
     word-wrap: break-word;
     display: inline-flex;
     flex-wrap: wrap;
     align-items: flex-end;
     gap: 6px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
     animation: fadeIn 0.2s ease-out forwards;
 }
 
@@ -201,6 +200,7 @@ body {
     }
 }
 
+/* RECEIVED MESSAGES: Left-aligned, Dark Slate */
 .msg.received {
     align-self: flex-start;
     background: #202c33;
@@ -209,11 +209,20 @@ body {
     border: 1px solid var(--glass-border);
 }
 
+.msg.received .timestamp {
+    color: rgba(241, 241, 242, 0.5);
+}
+
+/* SENT MESSAGES: Right-aligned, Gradient Pink */
 .msg.sent {
     align-self: flex-end;
-    background: #005c4b;
-    color: #e9edef;
+    background: linear-gradient(135deg, #ff2a75 0%, #d81b60 100%);
+    color: #ffffff;
     border-top-right-radius: 2px;
+}
+
+.msg.sent .timestamp {
+    color: rgba(255, 255, 255, 0.75);
 }
 
 .msg-text {
@@ -231,7 +240,6 @@ body {
 
 .timestamp {
     font-size: 0.65rem;
-    color: rgba(241, 241, 242, 0.63);
     user-select: none;
 }
 
