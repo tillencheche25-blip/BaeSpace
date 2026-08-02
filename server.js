@@ -13,7 +13,6 @@ const io = new Server(server, {
     }
 });
 
-// Serve static assets from public folder
 app.use(express.static('public'));
 
 // --- 1. Database Connection ---
@@ -23,7 +22,7 @@ mongoose.connect(MONGO_URI)
     .then(() => console.log(' Connected to MongoDB Database'))
     .catch(err => console.error(' MongoDB Connection Error:', err));
 
-// --- 2. User Database Schema ---
+// --- 2. User Schema ---
 const userSchema = new mongoose.Schema({
     email: {
         type: String,
@@ -44,21 +43,23 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', userSchema);
 
-// --- 3. Socket.IO Authentication & Chat ---
+// --- 3. Socket.IO Connections ---
 io.on('connection', (socket) => {
     console.log(` Client Connected: ${socket.id}`);
 
-    // --- SIGN UP HANDLER ---
+    // --- SIGN UP ---
     socket.on('user_signup', async ({ email, password }) => {
         try {
             if (!email || !password) {
                 return socket.emit('auth_error', 'Email and password are required.');
             }
 
-            const cleanEmail = email.toLowerCase().trim();
+            const cleanEmail = String(email).toLowerCase().trim();
+            console.log(`[SIGNUP ATTEMPT] Email: "${cleanEmail}"`);
 
             const existingUser = await User.findOne({ email: cleanEmail });
             if (existingUser) {
+                console.log(`[SIGNUP FAIL] Email "${cleanEmail}" already exists in DB.`);
                 return socket.emit('auth_error', 'An account with this email already exists.');
             }
 
@@ -74,40 +75,42 @@ io.on('connection', (socket) => {
             });
 
             await newUser.save();
-            console.log(` New account registered: ${cleanEmail}`);
+            console.log(`[SIGNUP SUCCESS] Account created for "${cleanEmail}"`);
 
             socket.emit('auth_success', { user: { email: newUser.email } });
         } catch (err) {
             console.error('Signup Error Details:', err);
-
             if (err.code === 11000) {
                 return socket.emit('auth_error', 'An account with this email already exists.');
             }
-
             socket.emit('auth_error', err.message || 'Error creating account. Please try again.');
         }
     });
 
-    // --- LOG IN HANDLER ---
+    // --- LOG IN ---
     socket.on('user_login', async ({ email, password }) => {
         try {
             if (!email || !password) {
                 return socket.emit('auth_error', 'Email and password are required.');
             }
 
-            const cleanEmail = email.toLowerCase().trim();
+            const cleanEmail = String(email).toLowerCase().trim();
+            console.log(`[LOGIN ATTEMPT] Email: "${cleanEmail}"`);
+
             const user = await User.findOne({ email: cleanEmail });
 
             if (!user) {
+                console.log(`[LOGIN FAIL] No user found for "${cleanEmail}"`);
                 return socket.emit('auth_error', 'No account found with this email.');
             }
 
             const isMatch = await bcrypt.compare(password.toString(), user.password);
             if (!isMatch) {
+                console.log(`[LOGIN FAIL] Password mismatch for "${cleanEmail}"`);
                 return socket.emit('auth_error', 'Incorrect password.');
             }
 
-            console.log(` User logged in: ${cleanEmail}`);
+            console.log(`[LOGIN SUCCESS] "${cleanEmail}" authenticated.`);
             socket.emit('auth_success', { user: { email: user.email } });
         } catch (err) {
             console.error('Login Error Details:', err);
@@ -115,7 +118,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    // --- ROOM JOINING HANDLER ---
+    // --- ROOM JOINING ---
     socket.on('join_partner_room', ({ userEmail, targetRoomId }) => {
         const roomId = targetRoomId || 'default_room';
         socket.join(roomId);
@@ -124,7 +127,7 @@ io.on('connection', (socket) => {
         socket.emit('room_access_granted', { roomId });
     });
 
-    // --- MESSAGING HANDLER ---
+    // --- MESSAGING ---
     socket.on('send_message', (data) => {
         const timestamp = new Date().toLocaleTimeString([], {
             hour: '2-digit',
@@ -143,7 +146,6 @@ io.on('connection', (socket) => {
     });
 });
 
-// --- 4. Server Listener ---
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(` BaeSpace server running on port ${PORT}`);

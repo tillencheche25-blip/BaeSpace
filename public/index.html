@@ -21,7 +21,8 @@
                 </div>
             </div>
             <div class="header-actions">
-                <button class="icon-btn" onclick="showAuthModal()" title="Switch Account / Room">🔑</button>
+                <button type="button" class="icon-btn" onclick="showAuthModal()"
+                    title="Switch Account / Room">🔑</button>
             </div>
         </header>
 
@@ -29,15 +30,13 @@
         <main class="main-content">
             <div class="screen-view">
                 <!-- Messages Scroll Area -->
-                <div id="messages-container" class="messages-area">
-                    <!-- Dynamic chat bubbles render here -->
-                </div>
+                <div id="messages-container" class="messages-area"></div>
 
                 <!-- Bottom Chat Input Bar -->
                 <div class="chat-input-bar">
                     <input type="text" id="chat-input" placeholder="Type a message..."
                         onkeypress="handleKeyPress(event)" autocomplete="off">
-                    <button class="send-btn" onclick="sendMessage()">➤</button>
+                    <button type="button" class="send-btn" onclick="sendMessage()">➤</button>
                 </div>
             </div>
         </main>
@@ -51,20 +50,22 @@
                 Connect privately with your partner
             </p>
 
-            <div class="input-group">
-                <input type="email" id="auth-email" placeholder="Email Address" required autocomplete="email">
-            </div>
+            <form id="auth-form" onsubmit="handleAuthSubmit(event)">
+                <div class="input-group">
+                    <input type="email" id="auth-email" placeholder="Email Address" required autocomplete="email">
+                </div>
 
-            <div class="input-group">
-                <input type="password" id="auth-password" placeholder="Password" required
-                    autocomplete="current-password">
-            </div>
+                <div class="input-group">
+                    <input type="password" id="auth-password" placeholder="Password" required
+                        autocomplete="current-password">
+                </div>
 
-            <div class="input-group">
-                <input type="text" id="auth-room-code" placeholder="Room Code (e.g. 1111)" required>
-            </div>
+                <div class="input-group">
+                    <input type="text" id="auth-room-code" placeholder="Room Code (e.g. 1111)" required>
+                </div>
 
-            <button type="button" id="auth-submit-btn" class="primary-btn" onclick="handleLogin()">Log In</button>
+                <button type="submit" id="auth-submit-btn" class="primary-btn">Log In</button>
+            </form>
 
             <p style="margin-top: 16px; font-size: 0.85rem; color: var(--text-secondary);">
                 <span id="auth-toggle-text">Don't have an account?</span>
@@ -74,7 +75,6 @@
         </div>
     </div>
 
-    <!-- Socket.IO Client Library & Main App Script -->
     <script src="/socket.io/socket.io.js"></script>
     <script src="app.js"></script>
 </body>

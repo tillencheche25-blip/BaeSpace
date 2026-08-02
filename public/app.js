@@ -23,47 +23,32 @@ function toggleAuthMode(e) {
 
     if (isSignUpMode) {
         btn.innerText = 'Sign Up';
-        btn.setAttribute('onclick', 'handleSignUp()');
         toggleText.innerText = 'Already have an account?';
-        if (toggleLink) toggleLink.innerText = 'Log In';
+        toggleLink.innerText = 'Log In';
     } else {
         btn.innerText = 'Log In';
-        btn.setAttribute('onclick', 'handleLogin()');
         toggleText.innerText = "Don't have an account?";
-        if (toggleLink) toggleLink.innerText = 'Sign Up';
+        toggleLink.innerText = 'Sign Up';
     }
 }
 
-// --- Keyboard Shortcuts ---
-function handleKeyPress(e) {
-    if (e.key === 'Enter') {
-        sendMessage();
-    }
-}
+// --- Form Submit Handler ---
+function handleAuthSubmit(e) {
+    e.preventDefault();
 
-// --- Auth Handlers ---
-function handleSignUp() {
-    const email = document.getElementById('auth-email').value;
-    const password = document.getElementById('auth-password').value;
+    const email = document.getElementById('auth-email').value.trim().toLowerCase();
+    const password = document.getElementById('auth-password').value.trim();
 
-    if (!email.trim() || !password.trim()) {
+    if (!email || !password) {
         alert('Please fill in both email and password.');
         return;
     }
 
-    socket.emit('user_signup', { email, password });
-}
-
-function handleLogin() {
-    const email = document.getElementById('auth-email').value;
-    const password = document.getElementById('auth-password').value;
-
-    if (!email.trim() || !password.trim()) {
-        alert('Please enter your credentials.');
-        return;
+    if (isSignUpMode) {
+        socket.emit('user_signup', { email, password });
+    } else {
+        socket.emit('user_login', { email, password });
     }
-
-    socket.emit('user_login', { email, password });
 }
 
 // --- Socket Event Handlers ---
@@ -119,7 +104,12 @@ function sendMessage() {
     }
 }
 
-// Render message with exact sent vs received alignment check
+function handleKeyPress(e) {
+    if (e.key === 'Enter') {
+        sendMessage();
+    }
+}
+
 socket.on('receive_message', (data) => {
     const container = document.getElementById('messages-container');
     if (!container) return;
@@ -145,7 +135,6 @@ socket.on('receive_message', (data) => {
     container.scrollTop = container.scrollHeight;
 });
 
-// Utility
 function escapeHTML(str) {
     return str.replace(/[&<>'"]/g,
         tag => ({
