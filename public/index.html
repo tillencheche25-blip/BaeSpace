@@ -3,72 +3,80 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BaeSpace</title>
-    <link rel="stylesheet" href="style.css?v=5">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BaeSpace - Private Partner Connect</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
     <div class="app-container">
-        <!-- Header -->
+        <!-- App Header -->
         <header class="app-header">
             <div class="partner-info">
                 <div class="avatar-small"></div>
                 <div>
-                    <h4 id="current-room-title">BaeSpace</h4>
-                    <span class="status-online" id="room-status">Connected & Encrypted</span>
+                    <h1 id="current-room-title">BaeSpace</h1>
+                    <span id="room-status" class="status-online">Connected & Encrypted</span>
                 </div>
             </div>
             <div class="header-actions">
-                <button class="icon-btn" title="Security Settings" onclick="showAuthModal()">🔑</button>
+                <button class="icon-btn" onclick="showAuthModal()" title="Switch Account / Room">🔑</button>
             </div>
         </header>
 
-        <!-- Main Screen -->
+        <!-- Main Screen View -->
         <main class="main-content">
-            <div class="screen-view active" id="chat-screen">
-                <div class="messages-area" id="messages-container">
-                    <!-- Dynamic WhatsApp Messages -->
+            <div class="screen-view">
+                <!-- Messages Scroll Area -->
+                <div id="messages-container" class="messages-area">
+                    <!-- Dynamic chat bubbles render here -->
                 </div>
 
+                <!-- Bottom Chat Input Bar -->
                 <div class="chat-input-bar">
                     <input type="text" id="chat-input" placeholder="Type a message..."
-                        onkeypress="handleKeyPress(event)">
+                        onkeypress="handleKeyPress(event)" autocomplete="off">
                     <button class="send-btn" onclick="sendMessage()">➤</button>
                 </div>
             </div>
         </main>
     </div>
 
-    <!-- Auth Modal -->
+    <!-- Auth / Room Join Modal -->
     <div id="auth-modal" class="auth-overlay active">
         <div class="auth-box">
-            <h2>BaeSpace</h2>
-            <p style="font-size: 0.85rem; color: #a0a5ba; margin-bottom: 12px;">Connect privately with your partner</p>
+            <h2 id="auth-title">BaeSpace</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 0.85rem;">
+                Connect privately with your partner
+            </p>
 
             <div class="input-group">
-                <input type="email" id="auth-email" placeholder="Email Address">
-            </div>
-            <div class="input-group">
-                <input type="password" id="auth-password" placeholder="Password">
-            </div>
-            <div class="input-group">
-                <input type="text" id="auth-room-code" placeholder="Shared Room Code (e.g. 1111)">
+                <input type="email" id="auth-email" placeholder="Email Address" required autocomplete="email">
             </div>
 
-            <button class="primary-btn" id="auth-submit-btn" onclick="handleLogin()">Log In</button>
+            <div class="input-group">
+                <input type="password" id="auth-password" placeholder="Password" required
+                    autocomplete="current-password">
+            </div>
 
-            <p style="margin-top: 14px; font-size: 0.85rem; color: #a0a5ba;">
+            <div class="input-group">
+                <input type="text" id="auth-room-code" placeholder="Room Code (e.g. 1111)" required>
+            </div>
+
+            <button type="button" id="auth-submit-btn" class="primary-btn" onclick="handleLogin()">Log In</button>
+
+            <p style="margin-top: 16px; font-size: 0.85rem; color: var(--text-secondary);">
                 <span id="auth-toggle-text">Don't have an account?</span>
-                <a href="#" id="auth-toggle-link" style="color: #ff2a75; font-weight: 600;"
-                    onclick="toggleAuthMode(event)">Sign Up</a>
+                <a href="#" id="auth-toggle-link" onclick="toggleAuthMode(event)"
+                    style="color: var(--accent-pink); font-weight: 600; text-decoration: none;">Sign Up</a>
             </p>
         </div>
     </div>
 
+    <!-- Socket.IO Client Library & Main App Script -->
     <script src="/socket.io/socket.io.js"></script>
-    <script src="app.js?v=5"></script>
+    <script src="app.js"></script>
 </body>
 
 </html>
