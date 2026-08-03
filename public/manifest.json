@@ -1,19 +1,22 @@
 {
     "name": "HeartSync - Private Partner Connect",
     "short_name": "HeartSync",
+    "description": "Private, real-time encrypted messaging space for partners.",
     "start_url": "/",
+    "scope": "/",
     "display": "standalone",
+    "orientation": "portrait",
     "background_color": "#0f0d13",
     "theme_color": "#0f0d13",
     "icons": [
         {
-            "src": "icon.png",
+            "src": "/icon.png",
             "sizes": "192x192",
             "type": "image/png",
             "purpose": "any maskable"
         },
         {
-            "src": "icon.png",
+            "src": "/icon.png",
             "sizes": "512x512",
             "type": "image/png",
             "purpose": "any maskable"
