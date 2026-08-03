@@ -1,8 +1,27 @@
+// --- Service Worker Registration for PWA / PWABuilder ---
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+            .then(() => console.log('Service Worker Registered Successfully'))
+            .catch((err) => console.error('Service Worker Registration Failed:', err));
+    });
+}
+
 const socket = io();
 
 let currentUser = null;
 let currentRoomId = null;
 let isSignUpMode = false;
+
+// --- Hide Splash Screen on Load ---
+window.addEventListener('load', () => {
+    setTimeout(() => {
+        const splash = document.getElementById('splash-screen');
+        if (splash) {
+            splash.classList.add('fade-out');
+        }
+    }, 1200);
+});
 
 // --- Modal Controls ---
 function showAuthModal() {
@@ -145,12 +164,4 @@ function escapeHTML(str) {
             '"': '&quot;'
         }[tag] || tag)
     );
-}// --- Hide Splash Screen on Load ---
-window.addEventListener('load', () => {
-    setTimeout(() => {
-        const splash = document.getElementById('splash-screen');
-        if (splash) {
-            splash.classList.add('fade-out');
-        }
-    }, 1200);
-});
+}

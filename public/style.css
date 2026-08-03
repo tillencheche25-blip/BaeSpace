@@ -3,11 +3,13 @@
     --card-bg: #1a1622;
     --input-bg: #241f30;
     --accent-pink: #ff2a6d;
+    --accent-purple: #6f42c1;
     --accent-glow: rgba(255, 42, 109, 0.35);
     --text-primary: #ffffff;
     --text-secondary: #9a90a8;
     --msg-sent: #ff2a6d;
     --msg-received: #2a2436;
+    --border-color: rgba(255, 255, 255, 0.08);
 }
 
 * {
@@ -45,7 +47,7 @@ body {
     padding: 16px 20px;
     background-color: rgba(26, 22, 34, 0.9);
     backdrop-filter: blur(10px);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid var(--border-color);
 }
 
 .partner-info {
@@ -54,15 +56,11 @@ body {
     gap: 12px;
 }
 
-.avatar-small {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #ff2a6d, #9a00ff);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.2rem;
+.avatar-small-img {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    object-fit: cover;
 }
 
 .app-header h1 {
@@ -152,13 +150,13 @@ body {
     display: flex;
     gap: 10px;
     background-color: var(--card-bg);
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    border-top: 1px solid var(--border-color);
 }
 
 .chat-input-bar input {
     flex: 1;
     background-color: var(--input-bg);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border-color);
     border-radius: 24px;
     padding: 12px 18px;
     color: white;
@@ -174,68 +172,6 @@ body {
     border-radius: 50%;
     cursor: pointer;
     box-shadow: 0 4px 12px var(--accent-glow);
-}
-
-/* Auth Modal Overlay */
-.auth-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background-color: rgba(0, 0, 0, 0.85);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    z-index: 999;
-}
-
-.auth-overlay.active {
-    display: flex;
-}
-
-.auth-box {
-    background-color: var(--card-bg);
-    padding: 32px 24px;
-    border-radius: 20px;
-    width: 90%;
-    max-width: 360px;
-    text-align: center;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
-}
-
-.auth-icon {
-    font-size: 2.5rem;
-    margin-bottom: 8px;
-}
-
-.input-group {
-    margin-bottom: 12px;
-}
-
-.input-group input {
-    width: 100%;
-    padding: 12px 16px;
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background-color: var(--input-bg);
-    color: white;
-    outline: none;
-}
-
-.primary-btn {
-    width: 100%;
-    padding: 14px;
-    border: none;
-    border-radius: 12px;
-    background-color: var(--accent-pink);
-    color: white;
-    font-weight: 600;
-    font-size: 1rem;
-    cursor: pointer;
-    margin-top: 8px;
-    box-shadow: 0 4px 16px var(--accent-glow);
 }
 
 /* --- Splash Screen & Logo Animations --- */
@@ -304,12 +240,33 @@ body {
     color: var(--text-secondary);
 }
 
-/* Header & Modal Image Icon Classes */
-.avatar-small-img {
-    width: 38px;
-    height: 38px;
-    border-radius: 10px;
-    object-fit: cover;
+/* Auth Modal Overlay */
+.auth-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.85);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+}
+
+.auth-overlay.active {
+    display: flex;
+}
+
+.auth-box {
+    background-color: var(--card-bg);
+    padding: 32px 24px;
+    border-radius: 20px;
+    width: 90%;
+    max-width: 360px;
+    text-align: center;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
 }
 
 .auth-logo-img {
@@ -319,4 +276,32 @@ body {
     object-fit: cover;
     margin-bottom: 12px;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.input-group {
+    margin-bottom: 12px;
+}
+
+.input-group input {
+    width: 100%;
+    padding: 12px 16px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    background-color: var(--input-bg);
+    color: white;
+    outline: none;
+}
+
+.primary-btn {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 12px;
+    background-color: var(--accent-pink);
+    color: white;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    margin-top: 8px;
+    box-shadow: 0 4px 16px var(--accent-glow);
 }

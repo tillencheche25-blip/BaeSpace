@@ -15,7 +15,7 @@ const io = new Server(server, {
 
 app.use(express.static('public'));
 
-// --- 1. Database Connection & Index Cleanup ---
+// --- Database Connection & Index Cleanup ---
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/heartsync';
 
 mongoose.connect(MONGO_URI)
@@ -33,7 +33,7 @@ mongoose.connect(MONGO_URI)
     })
     .catch(err => console.error(' MongoDB Connection Error:', err));
 
-// --- 2. User Schema ---
+// --- User Schema ---
 const userSchema = new mongoose.Schema({
     email: {
         type: String,
@@ -54,7 +54,7 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', userSchema);
 
-// --- 3. Socket.IO Connections ---
+// --- Socket.IO Connections ---
 io.on('connection', (socket) => {
     console.log(` Client Connected: ${socket.id}`);
 

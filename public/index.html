@@ -5,8 +5,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HeartSync - Private Partner Connect</title>
-    <!-- App Favicon -->
-    <link rel="icon" href="icon.png" type="image/png">
+
+    <!-- App Favicon & PWA Manifest -->
+    <link rel="icon" href="/icon.png" type="image/png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0f0d13">
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -15,7 +18,7 @@
     <!-- Loading Splash Screen Animation -->
     <div id="splash-screen" class="splash-overlay">
         <div class="splash-content">
-            <img src="icon.png" alt="HeartSync Logo" class="splash-logo">
+            <img src="/icon.png" alt="HeartSync Logo" class="splash-logo">
             <h2>HeartSync</h2>
             <p>Securing your private space...</p>
         </div>
@@ -25,7 +28,7 @@
         <!-- App Header -->
         <header class="app-header">
             <div class="partner-info">
-                <img src="icon.png" alt="Logo" class="avatar-small-img" id="app-header-icon">
+                <img src="/icon.png" alt="Logo" class="avatar-small-img" id="app-header-icon">
                 <div>
                     <h1 id="current-room-title">HeartSync</h1>
                     <span id="room-status" class="status-online">Connected & Encrypted</span>
@@ -54,9 +57,9 @@
     </div>
 
     <!-- Auth / Room Join Modal -->
-    <div id="auth-modal" class="auth-overlay active">
+    <div id="auth-modal" class="auth-overlay">
         <div class="auth-box">
-            <img src="icon.png" alt="Logo" class="auth-logo-img">
+            <img src="/icon.png" alt="Logo" class="auth-logo-img">
             <h2 id="auth-title">HeartSync</h2>
             <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 0.85rem;">
                 Connect privately with your partner
