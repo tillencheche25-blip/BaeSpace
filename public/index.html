@@ -5,16 +5,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HeartSync - Private Partner Connect</title>
+    <!-- App Favicon -->
+    <link rel="icon" href="icon.png" type="image/png">
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
+    <!-- Loading Splash Screen Animation -->
+    <div id="splash-screen" class="splash-overlay">
+        <div class="splash-content">
+            <img src="icon.png" alt="HeartSync Logo" class="splash-logo">
+            <h2>HeartSync</h2>
+            <p>Securing your private space...</p>
+        </div>
+    </div>
+
     <div class="app-container">
         <!-- App Header -->
         <header class="app-header">
             <div class="partner-info">
-                <div class="avatar-small" id="app-header-icon">💖</div>
+                <img src="icon.png" alt="Logo" class="avatar-small-img" id="app-header-icon">
                 <div>
                     <h1 id="current-room-title">HeartSync</h1>
                     <span id="room-status" class="status-online">Connected & Encrypted</span>
@@ -45,7 +56,7 @@
     <!-- Auth / Room Join Modal -->
     <div id="auth-modal" class="auth-overlay active">
         <div class="auth-box">
-            <div class="auth-icon">💖</div>
+            <img src="icon.png" alt="Logo" class="auth-logo-img">
             <h2 id="auth-title">HeartSync</h2>
             <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 0.85rem;">
                 Connect privately with your partner

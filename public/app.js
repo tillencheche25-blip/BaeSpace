@@ -145,4 +145,12 @@ function escapeHTML(str) {
             '"': '&quot;'
         }[tag] || tag)
     );
-}
+}// --- Hide Splash Screen on Load ---
+window.addEventListener('load', () => {
+    setTimeout(() => {
+        const splash = document.getElementById('splash-screen');
+        if (splash) {
+            splash.classList.add('fade-out');
+        }
+    }, 1200);
+});
