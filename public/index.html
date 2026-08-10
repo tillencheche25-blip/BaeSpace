@@ -6,7 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HeartSync - Private Partner Connect</title>
 
-    <!-- App Favicon & PWA Manifest -->
     <link rel="icon" href="/icon.png" type="image/png">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#0f0d13">
@@ -20,7 +19,7 @@
         <div class="splash-content">
             <img src="/icon.png" alt="HeartSync Logo" class="splash-logo">
             <h2>HeartSync</h2>
-            <p>Securing your private space...</p>
+            <p style="color: var(--text-secondary); margin-top: 8px;">Securing your private space...</p>
         </div>
     </div>
 
@@ -42,18 +41,29 @@
 
         <!-- Main Screen View -->
         <main class="main-content">
-            <div class="screen-view">
-                <!-- Messages Scroll Area -->
-                <div id="messages-container" class="messages-area"></div>
-
-                <!-- Bottom Chat Input Bar -->
-                <div class="chat-input-bar">
-                    <input type="text" id="chat-input" placeholder="Type a message..."
-                        onkeypress="handleKeyPress(event)" autocomplete="off">
-                    <button type="button" class="send-btn" onclick="sendMessage()">➤</button>
-                </div>
-            </div>
+            <div id="messages-container" class="messages-area"></div>
         </main>
+
+        <!-- Chat Input Bar -->
+        <div class="chat-input-container">
+            <!-- Hidden Attachment Preview -->
+            <div id="image-preview-bar" class="image-preview-bar" style="display: none;">
+                <img id="image-preview" class="preview-thumbnail" src="" alt="Attachment Preview">
+                <span style="font-size: 0.8rem; flex: 1;">Image attached</span>
+                <button type="button" class="remove-img-btn" onclick="clearSelectedImage()">✕</button>
+            </div>
+
+            <div class="chat-input-bar">
+                <button type="button" class="attach-btn"
+                    onclick="document.getElementById('file-input').click()">📷</button>
+                <input type="file" id="file-input" accept="image/*" style="display: none;"
+                    onchange="handleImageSelect(event)">
+
+                <input type="text" id="chat-input" placeholder="Type a message..." onkeypress="handleKeyPress(event)"
+                    autocomplete="off">
+                <button type="button" class="send-btn" onclick="sendMessage()">➤</button>
+            </div>
+        </div>
     </div>
 
     <!-- Auth / Room Join Modal -->

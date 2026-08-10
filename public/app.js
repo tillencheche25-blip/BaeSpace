@@ -1,167 +1,135 @@
-// --- Service Worker Registration for PWA / PWABuilder ---
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-            .then(() => console.log('Service Worker Registered Successfully'))
-            .catch((err) => console.error('Service Worker Registration Failed:', err));
-    });
-}
-
 const socket = io();
-
 let currentUser = null;
-let currentRoomId = null;
-let isSignUpMode = false;
+let currentRoom = null;
+let selectedImageData = null;
 
-// --- Hide Splash Screen on Load ---
-window.addEventListener('load', () => {
+// Hide splash screen on load
+window.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
         const splash = document.getElementById('splash-screen');
         if (splash) {
-            splash.classList.add('fade-out');
+            splash.style.opacity = '0';
+            setTimeout(() => splash.style.display = 'none', 500);
         }
-    }, 1200);
+    }, 1000);
 });
 
-// --- Modal Controls ---
-function showAuthModal() {
-    document.getElementById('auth-modal').classList.add('active');
-}
-
-function hideAuthModal() {
-    document.getElementById('auth-modal').classList.remove('active');
-}
-
-function toggleAuthMode(e) {
-    if (e) e.preventDefault();
-    isSignUpMode = !isSignUpMode;
-
-    const btn = document.getElementById('auth-submit-btn');
-    const toggleText = document.getElementById('auth-toggle-text');
-    const toggleLink = document.getElementById('auth-toggle-link');
-
-    if (isSignUpMode) {
-        btn.innerText = 'Sign Up';
-        toggleText.innerText = 'Already have an account?';
-        toggleLink.innerText = 'Log In';
-    } else {
-        btn.innerText = 'Log In';
-        toggleText.innerText = "Don't have an account?";
-        toggleLink.innerText = 'Sign Up';
-    }
-}
-
-// --- Form Submit Handler ---
 function handleAuthSubmit(e) {
     e.preventDefault();
+    const email = document.getElementById('auth-email').value;
+    const roomCode = document.getElementById('auth-room-code').value;
 
-    const email = document.getElementById('auth-email').value.trim().toLowerCase();
-    const password = document.getElementById('auth-password').value.trim();
+    currentUser = email;
+    currentRoom = roomCode;
 
-    if (!email || !password) {
-        alert('Please fill in both email and password.');
-        return;
-    }
+    socket.emit('join-room', { email, roomCode });
 
-    if (isSignUpMode) {
-        socket.emit('user_signup', { email, password });
-    } else {
-        socket.emit('user_login', { email, password });
-    }
+    document.getElementById('auth-modal').style.display = 'none';
+    document.getElementById('current-room-title').textContent = `Room: ${roomCode}`;
 }
 
-// --- Socket Event Handlers ---
-socket.on('auth_success', (data) => {
-    currentUser = data.user;
-
-    const roomCodeInput = document.getElementById('auth-room-code');
-    const roomCode = (roomCodeInput && roomCodeInput.value.trim()) ? roomCodeInput.value.trim() : 'default_room';
-
-    socket.emit('join_partner_room', {
-        userEmail: currentUser.email,
-        targetRoomId: roomCode
-    });
-});
-
-socket.on('auth_error', (msg) => {
-    alert(msg);
-});
-
-socket.on('room_access_granted', (data) => {
-    currentRoomId = data.roomId;
-    const titleElem = document.getElementById('current-room-title');
-    const statusElem = document.getElementById('room-status');
-
-    if (titleElem) titleElem.innerText = `HeartSync [${data.roomId}]`;
-    if (statusElem) statusElem.innerText = 'Connected & Encrypted';
-
-    hideAuthModal();
-});
-
-socket.on('room_error', (msg) => {
-    alert(msg);
-});
-
-// --- Messaging Handlers ---
-function sendMessage() {
-    const input = document.getElementById('chat-input');
-    const message = input.value.trim();
-
-    if (!currentUser || !currentRoomId) {
-        alert('Please log in to your space first.');
-        showAuthModal();
-        return;
-    }
-
-    if (message) {
-        socket.emit('send_message', {
-            roomId: currentRoomId,
-            message,
-            userEmail: currentUser.email
-        });
-        input.value = '';
-    }
+function showAuthModal() {
+    document.getElementById('auth-modal').style.display = 'flex';
 }
 
 function handleKeyPress(e) {
-    if (e.key === 'Enter') {
-        sendMessage();
+    if (e.key === 'Enter') sendMessage();
+}
+
+// Handle Image File Selection
+function handleImageSelect(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function (event) {
+        selectedImageData = event.target.result;
+        document.getElementById('image-preview').src = selectedImageData;
+        document.getElementById('image-preview-bar').style.display = 'flex';
+    };
+    reader.readAsDataURL(file);
+}
+
+function clearSelectedImage() {
+    selectedImageData = null;
+    document.getElementById('file-input').value = '';
+    document.getElementById('image-preview-bar').style.display = 'none';
+}
+
+// Send Message (Text + Image)
+function sendMessage() {
+    const input = document.getElementById('chat-input');
+    const text = input.value.trim();
+
+    if (!text && !selectedImageData) return;
+
+    const msgData = {
+        id: Date.now().toString(),
+        sender: currentUser,
+        room: currentRoom,
+        text: text,
+        image: selectedImageData,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        read: false
+    };
+
+    socket.emit('send-message', msgData);
+    appendMessage(msgData, 'sent');
+
+    input.value = '';
+    clearSelectedImage();
+}
+
+// Append Message to UI
+function appendMessage(msg, direction) {
+    const container = document.getElementById('messages-container');
+    const wrapper = document.createElement('div');
+    wrapper.className = `message-wrapper ${direction}`;
+    wrapper.dataset.id = msg.id;
+
+    let contentHtml = '';
+    if (msg.image) {
+        contentHtml += `<img src="${msg.image}" class="message-img" alt="Attachment">`;
+    }
+    if (msg.text) {
+        contentHtml += `<div class="message-bubble">${escapeHtml(msg.text)}</div>`;
+    }
+
+    const readStatus = direction === 'sent'
+        ? `<span class="read-receipt">${msg.read ? '✓✓' : '✓'}</span>`
+        : '';
+
+    wrapper.innerHTML = `
+        ${contentHtml}
+        <div class="message-meta">
+            <span>${msg.time}</span>
+            ${readStatus}
+        </div>
+    `;
+
+    container.appendChild(wrapper);
+    container.scrollTop = container.scrollHeight;
+
+    // If receiving a message, trigger read receipt
+    if (direction === 'received') {
+        socket.emit('mark-read', { msgId: msg.id, room: currentRoom });
     }
 }
 
-socket.on('receive_message', (data) => {
-    const container = document.getElementById('messages-container');
-    if (!container) return;
-
-    const msgDiv = document.createElement('div');
-
-    const currentEmail = currentUser && currentUser.email ? currentUser.email.toLowerCase().trim() : '';
-    const senderEmail = data.senderEmail ? data.senderEmail.toLowerCase().trim() : '';
-
-    const isSent = currentEmail !== '' && currentEmail === senderEmail;
-
-    msgDiv.className = `msg ${isSent ? 'sent' : 'received'}`;
-
-    msgDiv.innerHTML = `
-        <span class="msg-text">${escapeHTML(data.message)}</span>
-        <span class="msg-meta">
-            <span class="timestamp">${data.timestamp}</span>
-            ${isSent ? '<span class="ticks">✓✓</span>' : ''}
-        </span>
-    `;
-
-    container.appendChild(msgDiv);
-    container.scrollTop = container.scrollHeight;
+// Socket Event Listeners
+socket.on('receive-message', (msg) => {
+    appendMessage(msg, 'received');
 });
 
-function escapeHTML(str) {
-    return str.replace(/[&<>'"]/g,
-        tag => ({
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            "'": '&#39;',
-            '"': '&quot;'
-        }[tag] || tag)
-    );
+socket.on('message-read', ({ msgId }) => {
+    const msgEl = document.querySelector(`[data-id="${msgId}"] .read-receipt`);
+    if (msgEl) {
+        msgEl.textContent = '✓✓';
+    }
+});
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
