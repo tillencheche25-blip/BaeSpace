@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>HeartSync - Private Partner Connect</title>
 
     <link rel="icon" href="/icon.png" type="image/png">
@@ -14,7 +14,7 @@
 
 <body>
 
-    <!-- Loading Splash Screen Animation -->
+    <!-- Splash Screen -->
     <div id="splash-screen" class="splash-overlay">
         <div class="splash-content">
             <img src="/icon.png" alt="HeartSync Logo" class="splash-logo">
@@ -24,7 +24,7 @@
     </div>
 
     <div class="app-container">
-        <!-- App Header -->
+        <!-- Header -->
         <header class="app-header">
             <div class="partner-info">
                 <img src="/icon.png" alt="Logo" class="avatar-small-img" id="app-header-icon">
@@ -34,22 +34,21 @@
                 </div>
             </div>
             <div class="header-actions">
-                <button type="button" class="icon-btn" onclick="showAuthModal()"
-                    title="Switch Account / Room">🔑</button>
+                <button type="button" class="icon-btn" onclick="showAuthModal()" title="Switch Room">🔑</button>
             </div>
         </header>
 
-        <!-- Main Screen View -->
+        <!-- Message List Container -->
         <main class="main-content">
             <div id="messages-container" class="messages-area"></div>
         </main>
 
-        <!-- Chat Input Bar -->
+        <!-- Bottom Input Area -->
         <div class="chat-input-container">
-            <!-- Hidden Attachment Preview -->
+            <!-- Image Attachment Preview Bar -->
             <div id="image-preview-bar" class="image-preview-bar" style="display: none;">
-                <img id="image-preview" class="preview-thumbnail" src="" alt="Attachment Preview">
-                <span style="font-size: 0.8rem; flex: 1;">Image attached</span>
+                <img id="image-preview" class="preview-thumbnail" src="" alt="Preview">
+                <span style="font-size: 0.8rem; flex: 1; color: var(--text-secondary);">Image attached</span>
                 <button type="button" class="remove-img-btn" onclick="clearSelectedImage()">✕</button>
             </div>
 
@@ -66,7 +65,7 @@
         </div>
     </div>
 
-    <!-- Auth / Room Join Modal -->
+    <!-- Login / Room Modal -->
     <div id="auth-modal" class="auth-overlay">
         <div class="auth-box">
             <img src="/icon.png" alt="Logo" class="auth-logo-img">
@@ -81,22 +80,11 @@
                 </div>
 
                 <div class="input-group">
-                    <input type="password" id="auth-password" placeholder="Password" required
-                        autocomplete="current-password">
-                </div>
-
-                <div class="input-group">
                     <input type="text" id="auth-room-code" placeholder="Room Code (e.g. 1111)" required>
                 </div>
 
-                <button type="submit" id="auth-submit-btn" class="primary-btn">Log In</button>
+                <button type="submit" id="auth-submit-btn" class="primary-btn">Join Room</button>
             </form>
-
-            <p style="margin-top: 16px; font-size: 0.85rem; color: var(--text-secondary);">
-                <span id="auth-toggle-text">Don't have an account?</span>
-                <a href="#" id="auth-toggle-link" onclick="toggleAuthMode(event)"
-                    style="color: var(--accent-pink); font-weight: 600; text-decoration: none;">Sign Up</a>
-            </p>
         </div>
     </div>
 

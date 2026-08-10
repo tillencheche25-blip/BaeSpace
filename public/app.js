@@ -3,7 +3,7 @@ let currentUser = null;
 let currentRoom = null;
 let selectedImageData = null;
 
-// Hide splash screen on load
+// Hide Splash Screen
 window.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
         const splash = document.getElementById('splash-screen');
@@ -14,6 +14,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }, 1000);
 });
 
+// Join Room Handler
 function handleAuthSubmit(e) {
     e.preventDefault();
     const email = document.getElementById('auth-email').value;
@@ -56,12 +57,16 @@ function clearSelectedImage() {
     document.getElementById('image-preview-bar').style.display = 'none';
 }
 
-// Send Message (Text + Image)
+// Send Message
 function sendMessage() {
     const input = document.getElementById('chat-input');
     const text = input.value.trim();
 
     if (!text && !selectedImageData) return;
+    if (!currentRoom) {
+        showAuthModal();
+        return;
+    }
 
     const msgData = {
         id: Date.now().toString(),
@@ -73,14 +78,18 @@ function sendMessage() {
         read: false
     };
 
+    // Emit message to server
     socket.emit('send-message', msgData);
+
+    // Append locally to sender's UI
     appendMessage(msgData, 'sent');
 
+    // Reset inputs
     input.value = '';
     clearSelectedImage();
 }
 
-// Append Message to UI
+// Render Messages to DOM
 function appendMessage(msg, direction) {
     const container = document.getElementById('messages-container');
     const wrapper = document.createElement('div');
@@ -110,13 +119,13 @@ function appendMessage(msg, direction) {
     container.appendChild(wrapper);
     container.scrollTop = container.scrollHeight;
 
-    // If receiving a message, trigger read receipt
+    // Trigger read receipt back to sender if receiving
     if (direction === 'received') {
         socket.emit('mark-read', { msgId: msg.id, room: currentRoom });
     }
 }
 
-// Socket Event Listeners
+// Socket Listeners
 socket.on('receive-message', (msg) => {
     appendMessage(msg, 'received');
 });
