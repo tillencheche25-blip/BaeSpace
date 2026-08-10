@@ -5,7 +5,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>HeartSync - Private Partner Connect</title>
-
     <link rel="icon" href="/icon.png" type="image/png">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#0f0d13">
@@ -17,9 +16,9 @@
     <!-- Splash Screen -->
     <div id="splash-screen" class="splash-overlay">
         <div class="splash-content">
-            <img src="/icon.png" alt="HeartSync Logo" class="splash-logo">
+            <img src="/icon.png" alt="HeartSync Logo" class="splash-logo" onerror="this.style.display='none'">
             <h2>HeartSync</h2>
-            <p style="color: var(--text-secondary); margin-top: 8px;">Securing your private space...</p>
+            <p style="color: #aaa; margin-top: 8px;">Securing your private space...</p>
         </div>
     </div>
 
@@ -27,14 +26,39 @@
         <!-- Header -->
         <header class="app-header">
             <div class="partner-info">
-                <img src="/icon.png" alt="Logo" class="avatar-small-img" id="app-header-icon">
+                <img src="/icon.png" alt="Logo" class="avatar-small-img" id="app-header-icon"
+                    onerror="this.style.display='none'">
                 <div>
                     <h1 id="current-room-title">HeartSync</h1>
                     <span id="room-status" class="status-online">Connected & Encrypted</span>
                 </div>
             </div>
+
+            <!-- Header Actions with 3-Dots Dropdown Menu -->
             <div class="header-actions">
-                <button type="button" class="icon-btn" onclick="showAuthModal()" title="Switch Room">🔑</button>
+                <div class="menu-container">
+                    <button type="button" class="icon-btn" id="menu-btn" onclick="toggleHeaderMenu(event)"
+                        title="Options">⋮</button>
+
+                    <div id="header-dropdown" class="dropdown-menu">
+                        <button type="button" class="dropdown-item" onclick="openProfileModal()">
+                            <span class="icon">👤</span> Profile
+                        </button>
+                        <button type="button" class="dropdown-item" onclick="openMemoriesModal()">
+                            <span class="icon">📸</span> Memories
+                        </button>
+                        <button type="button" class="dropdown-item" onclick="openBucketListModal()">
+                            <span class="icon">✨</span> Bucket List
+                        </button>
+                        <div class="dropdown-divider"></div>
+                        <button type="button" class="dropdown-item" onclick="clearLocalChat()">
+                            <span class="icon">🗑️</span> Clear Chat
+                        </button>
+                        <button type="button" class="dropdown-item text-danger" onclick="logoutUser()">
+                            <span class="icon">🚪</span> Logout
+                        </button>
+                    </div>
+                </div>
             </div>
         </header>
 
@@ -45,10 +69,9 @@
 
         <!-- Bottom Input Area -->
         <div class="chat-input-container">
-            <!-- Image Attachment Preview Bar -->
             <div id="image-preview-bar" class="image-preview-bar" style="display: none;">
                 <img id="image-preview" class="preview-thumbnail" src="" alt="Preview">
-                <span style="font-size: 0.8rem; flex: 1; color: var(--text-secondary);">Image attached</span>
+                <span style="font-size: 0.8rem; flex: 1; color: #aaa;">Image attached</span>
                 <button type="button" class="remove-img-btn" onclick="clearSelectedImage()">✕</button>
             </div>
 
@@ -68,9 +91,9 @@
     <!-- Login / Room Modal -->
     <div id="auth-modal" class="auth-overlay">
         <div class="auth-box">
-            <img src="/icon.png" alt="Logo" class="auth-logo-img">
+            <img src="/icon.png" alt="Logo" class="auth-logo-img" onerror="this.style.display='none'">
             <h2 id="auth-title">HeartSync</h2>
-            <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 0.85rem;">
+            <p style="color: #aaa; margin-bottom: 20px; font-size: 0.85rem;">
                 Connect privately with your partner
             </p>
 
@@ -93,183 +116,60 @@
         </div>
     </div>
 
+    <!-- Profile Modal -->
+    <div id="profile-modal" class="feature-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>User Profile</h3>
+                <button class="close-btn" onclick="closeModal('profile-modal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="profile-card">
+                    <div class="avatar-large">👤</div>
+                    <p><strong>Email:</strong> <span id="profile-email-display">-</span></p>
+                    <p><strong>Active Room:</strong> <span id="profile-room-display">-</span></p>
+                    <p class="status-badge">🔒 Encrypted Connection</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Memories Gallery Modal -->
+    <div id="memories-modal" class="feature-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Shared Memories</h3>
+                <button class="close-btn" onclick="closeModal('memories-modal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 0.85rem; color: #aaa; margin-bottom: 12px;">Photos shared in this room:</p>
+                <div id="memories-grid" class="memories-grid">
+                    <div class="empty-state">No photos shared yet!</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bucket List Modal -->
+    <div id="bucketlist-modal" class="feature-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Our Bucket List</h3>
+                <button class="close-btn" onclick="closeModal('bucketlist-modal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="add-item-bar">
+                    <input type="text" id="bucket-input" placeholder="Add a dream or goal...">
+                    <button type="button" class="primary-btn" style="width: auto; padding: 0 16px;"
+                        onclick="addBucketItem()">Add</button>
+                </div>
+                <ul id="bucket-list-container" class="feature-list"></ul>
+            </div>
+        </div>
+    </div>
+
     <script src="/socket.io/socket.io.js"></script>
     <script src="app.js"></script>
-    <!DOCTYPE html>
-    <html lang="en">
-
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-        <title>HeartSync - Private Partner Connect</title>
-        <link rel="icon" href="/icon.png" type="image/png">
-        <link rel="manifest" href="/manifest.json">
-        <meta name="theme-color" content="#0f0d13">
-        <link rel="stylesheet" href="style.css">
-    </head>
-
-    <body>
-
-        <!-- Splash Screen -->
-        <div id="splash-screen" class="splash-overlay">
-            <div class="splash-content">
-                <img src="/icon.png" alt="HeartSync Logo" class="splash-logo">
-                <h2>HeartSync</h2>
-                <p style="color: var(--text-secondary); margin-top: 8px;">Securing your private space...</p>
-            </div>
-        </div>
-
-        <div class="app-container">
-            <!-- Header -->
-            <header class="app-header">
-                <div class="partner-info">
-                    <img src="/icon.png" alt="Logo" class="avatar-small-img" id="app-header-icon">
-                    <div>
-                        <h1 id="current-room-title">HeartSync</h1>
-                        <span id="room-status" class="status-online">Connected & Encrypted</span>
-                    </div>
-                </div>
-
-                <!-- Header Actions with 3-Dots Dropdown Menu -->
-                <div class="header-actions">
-                    <div class="menu-container">
-                        <button type="button" class="icon-btn" id="menu-btn" onclick="toggleHeaderMenu(event)"
-                            title="Options">⋮</button>
-
-                        <div id="header-dropdown" class="dropdown-menu">
-                            <button type="button" class="dropdown-item" onclick="openProfileModal()">
-                                <span class="icon">👤</span> Profile
-                            </button>
-                            <button type="button" class="dropdown-item" onclick="openMemoriesModal()">
-                                <span class="icon">📸</span> Memories
-                            </button>
-                            <button type="button" class="dropdown-item" onclick="openBucketListModal()">
-                                <span class="icon">✨</span> Bucket List
-                            </button>
-                            <div class="dropdown-divider"></div>
-                            <button type="button" class="dropdown-item" onclick="clearLocalChat()">
-                                <span class="icon">🗑️</span> Clear Chat
-                            </button>
-                            <button type="button" class="dropdown-item text-danger" onclick="logoutUser()">
-                                <span class="icon">🚪</span> Logout
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </header>
-
-            <!-- Message List Container -->
-            <main class="main-content">
-                <div id="messages-container" class="messages-area"></div>
-            </main>
-
-            <!-- Bottom Input Area -->
-            <div class="chat-input-container">
-                <div id="image-preview-bar" class="image-preview-bar" style="display: none;">
-                    <img id="image-preview" class="preview-thumbnail" src="" alt="Preview">
-                    <span style="font-size: 0.8rem; flex: 1; color: var(--text-secondary);">Image attached</span>
-                    <button type="button" class="remove-img-btn" onclick="clearSelectedImage()">✕</button>
-                </div>
-
-                <div class="chat-input-bar">
-                    <button type="button" class="attach-btn"
-                        onclick="document.getElementById('file-input').click()">📷</button>
-                    <input type="file" id="file-input" accept="image/*" style="display: none;"
-                        onchange="handleImageSelect(event)">
-
-                    <input type="text" id="chat-input" placeholder="Type a message..."
-                        onkeypress="handleKeyPress(event)" autocomplete="off">
-                    <button type="button" class="send-btn" onclick="sendMessage()">➤</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Login / Room Modal -->
-        <div id="auth-modal" class="auth-overlay">
-            <div class="auth-box">
-                <img src="/icon.png" alt="Logo" class="auth-logo-img">
-                <h2 id="auth-title">HeartSync</h2>
-                <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 0.85rem;">
-                    Connect privately with your partner
-                </p>
-
-                <form id="auth-form" onsubmit="handleAuthSubmit(event)">
-                    <div class="input-group">
-                        <input type="email" id="auth-email" placeholder="Email Address" required autocomplete="email">
-                    </div>
-
-                    <div class="input-group">
-                        <input type="password" id="auth-password" placeholder="Password / Key" required
-                            autocomplete="current-password">
-                    </div>
-
-                    <div class="input-group">
-                        <input type="text" id="auth-room-code" placeholder="Room Code (e.g. 1111)" required>
-                    </div>
-
-                    <button type="submit" id="auth-submit-btn" class="primary-btn">Join Room</button>
-                </form>
-            </div>
-        </div>
-
-        <!-- Profile Modal -->
-        <div id="profile-modal" class="feature-modal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>User Profile</h3>
-                    <button class="close-btn" onclick="closeModal('profile-modal')">✕</button>
-                </div>
-                <div class="modal-body">
-                    <div class="profile-card">
-                        <div class="avatar-large">👤</div>
-                        <p><strong>Email:</strong> <span id="profile-email-display">-</span></p>
-                        <p><strong>Active Room:</strong> <span id="profile-room-display">-</span></p>
-                        <p class="status-badge">🔒 Encrypted Connection</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Memories Gallery Modal -->
-        <div id="memories-modal" class="feature-modal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>Shared Memories</h3>
-                    <button class="close-btn" onclick="closeModal('memories-modal')">✕</button>
-                </div>
-                <div class="modal-body">
-                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;">Photos shared in
-                        this room:</p>
-                    <div id="memories-grid" class="memories-grid">
-                        <div class="empty-state">No photos shared yet!</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Bucket List Modal -->
-        <div id="bucketlist-modal" class="feature-modal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>Our Bucket List</h3>
-                    <button class="close-btn" onclick="closeModal('bucketlist-modal')">✕</button>
-                </div>
-                <div class="modal-body">
-                    <div class="add-item-bar">
-                        <input type="text" id="bucket-input" placeholder="Add a dream or goal...">
-                        <button type="button" class="primary-btn" style="width: auto; padding: 0 16px;"
-                            onclick="addBucketItem()">Add</button>
-                    </div>
-                    <ul id="bucket-list-container" class="feature-list"></ul>
-                </div>
-            </div>
-        </div>
-
-        <script src="/socket.io/socket.io.js"></script>
-        <script src="app.js"></script>
-    </body>
-
-    </html>
 </body>
 
 </html>

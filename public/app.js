@@ -6,16 +6,23 @@ let selectedImageData = null;
 let sharedMemories = [];
 let bucketList = [];
 
-// Hide Splash Screen
-window.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => {
-        const splash = document.getElementById('splash-screen');
-        if (splash) {
-            splash.style.opacity = '0';
-            setTimeout(() => splash.style.display = 'none', 500);
-        }
-    }, 1000);
-});
+// Safe Splash Screen Hide
+function hideSplashScreen() {
+    const splash = document.getElementById('splash-screen');
+    if (splash) {
+        splash.style.transition = 'opacity 0.5s ease';
+        splash.style.opacity = '0';
+        setTimeout(() => {
+            splash.style.display = 'none';
+        }, 500);
+    }
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => setTimeout(hideSplashScreen, 500));
+} else {
+    setTimeout(hideSplashScreen, 500);
+}
 
 // Re-join room on Socket Reconnection
 socket.on('connect', () => {
@@ -46,7 +53,8 @@ window.addEventListener('click', (e) => {
 });
 
 function closeModal(modalId) {
-    document.getElementById(modalId).style.display = 'none';
+    const modal = document.getElementById(modalId);
+    if (modal) modal.style.display = 'none';
 }
 
 // 1. Profile Option
@@ -66,6 +74,7 @@ function openMemoriesModal() {
 
 function renderMemories() {
     const grid = document.getElementById('memories-grid');
+    if (!grid) return;
     grid.innerHTML = '';
 
     if (sharedMemories.length === 0) {
@@ -90,14 +99,13 @@ function openBucketListModal() {
 
 function addBucketItem() {
     const input = document.getElementById('bucket-input');
-    const text = input.value.trim();
+    const text = input ? input.value.trim() : '';
     if (!text) return;
 
     const item = { id: Date.now(), text, completed: false };
     bucketList.push(item);
     input.value = '';
 
-    // Broadcast bucket list item update to partner
     socket.emit('update-bucket', { room: currentRoom, bucketList });
     renderBucketList();
 }
@@ -110,6 +118,7 @@ function toggleBucketItem(id) {
 
 function renderBucketList() {
     const container = document.getElementById('bucket-list-container');
+    if (!container) return;
     container.innerHTML = '';
 
     if (bucketList.length === 0) {
@@ -132,7 +141,8 @@ function renderBucketList() {
 function clearLocalChat() {
     toggleHeaderMenu();
     if (confirm('Clear message history from your screen?')) {
-        document.getElementById('messages-container').innerHTML = '';
+        const container = document.getElementById('messages-container');
+        if (container) container.innerHTML = '';
     }
 }
 
@@ -146,7 +156,8 @@ function logoutUser() {
         sharedMemories = [];
         bucketList = [];
 
-        document.getElementById('messages-container').innerHTML = '';
+        const container = document.getElementById('messages-container');
+        if (container) container.innerHTML = '';
         showAuthModal();
     }
 }
@@ -159,6 +170,11 @@ function handleAuthSubmit(e) {
     const password = document.getElementById('auth-password').value.trim();
     const roomCode = document.getElementById('auth-room-code').value.trim().toLowerCase();
     const submitBtn = document.getElementById('auth-submit-btn');
+
+    if (!email || !password || !roomCode) {
+        alert('Please complete all fields.');
+        return;
+    }
 
     submitBtn.textContent = 'Verifying...';
     submitBtn.disabled = true;
@@ -182,7 +198,8 @@ function handleAuthSubmit(e) {
 }
 
 function showAuthModal() {
-    document.getElementById('auth-modal').style.display = 'flex';
+    const modal = document.getElementById('auth-modal');
+    if (modal) modal.style.display = 'flex';
 }
 
 function handleKeyPress(e) {
@@ -204,13 +221,15 @@ function handleImageSelect(e) {
 
 function clearSelectedImage() {
     selectedImageData = null;
-    document.getElementById('file-input').value = '';
-    document.getElementById('image-preview-bar').style.display = 'none';
+    const input = document.getElementById('file-input');
+    if (input) input.value = '';
+    const bar = document.getElementById('image-preview-bar');
+    if (bar) bar.style.display = 'none';
 }
 
 function sendMessage() {
     const input = document.getElementById('chat-input');
-    const text = input.value.trim();
+    const text = input ? input.value.trim() : '';
 
     if (!text && !selectedImageData) return;
     if (!currentRoom) {
@@ -235,12 +254,14 @@ function sendMessage() {
     socket.emit('send-message', msgData);
     appendMessage(msgData, 'sent');
 
-    input.value = '';
+    if (input) input.value = '';
     clearSelectedImage();
 }
 
 function appendMessage(msg, direction) {
     const container = document.getElementById('messages-container');
+    if (!container) return;
+
     const wrapper = document.createElement('div');
     wrapper.className = `message-wrapper ${direction}`;
     wrapper.dataset.id = msg.id;
@@ -273,7 +294,7 @@ function appendMessage(msg, direction) {
     }
 }
 
-// Socket Event Listeners
+// Socket Listeners
 socket.on('receive-message', (msg) => {
     if (msg.image) {
         sharedMemories.push(msg.image);
