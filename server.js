@@ -7,22 +7,46 @@ const app = express();
 const server = http.createServer(app);
 
 const io = new Server(server, {
-    maxHttpBufferSize: 1e7
+    maxHttpBufferSize: 1e7 // 10MB limit for image attachments
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
 
+// In-memory store for room passwords: { roomCode: password }
+const roomPasswords = {};
+
 io.on('connection', (socket) => {
     console.log('Client connected:', socket.id);
 
-    // Accept password alongside email and room code
-    socket.on('join-room', ({ email, password, roomCode }) => {
+    // Secure Join Room Handler
+    socket.on('join-room', ({ email, password, roomCode }, callback) => {
+        if (!roomCode || !password) {
+            if (callback) callback({ success: false, message: 'Room code and password are required.' });
+            return;
+        }
+
+        // If the room doesn't exist, create it and register the password
+        if (!roomPasswords[roomCode]) {
+            roomPasswords[roomCode] = password;
+            console.log(`Room ${roomCode} created with password.`);
+        }
+        // If room exists, verify password
+        else if (roomPasswords[roomCode] !== password) {
+            console.log(`Failed join attempt for room ${roomCode}: Incorrect password`);
+            if (callback) callback({ success: false, message: 'Incorrect password for this room!' });
+            return;
+        }
+
+        // Password verified - join room
         socket.join(roomCode);
         socket.currentRoom = roomCode;
         socket.currentUser = email;
-        console.log(`${email} joined room ${roomCode} with password`);
+        console.log(`${email} successfully joined room: ${roomCode}`);
 
         socket.to(roomCode).emit('user-joined', { email });
+
+        // Respond with success to client
+        if (callback) callback({ success: true });
     });
 
     socket.on('send-message', (msgData) => {

@@ -14,30 +14,33 @@ window.addEventListener('DOMContentLoaded', () => {
     }, 1000);
 });
 
-// Join Room Handler with Password
+// Join Room Handler with Server Password Validation
 function handleAuthSubmit(e) {
     e.preventDefault();
     const email = document.getElementById('auth-email').value;
     const password = document.getElementById('auth-password').value;
     const roomCode = document.getElementById('auth-room-code').value;
 
-    currentUser = email;
-    currentRoom = roomCode;
+    const submitBtn = document.getElementById('auth-submit-btn');
+    submitBtn.textContent = 'Verifying...';
+    submitBtn.disabled = true;
 
-    socket.emit('join-room', { email, password, roomCode });
+    // Send credentials with acknowledgment callback
+    socket.emit('join-room', { email, password, roomCode }, (response) => {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Join Room';
 
-    document.getElementById('auth-modal').style.display = 'none';
-    document.getElementById('current-room-title').textContent = `Room: ${roomCode}`;
+        if (response && response.success) {
+            currentUser = email;
+            currentRoom = roomCode;
+
+            document.getElementById('auth-modal').style.display = 'none';
+            document.getElementById('current-room-title').textContent = `Room: ${roomCode}`;
+        } else {
+            alert(response.message || 'Access denied! Invalid password.');
+        }
+    });
 }
-
-function showAuthModal() {
-    document.getElementById('auth-modal').style.display = 'flex';
-}
-
-function handleKeyPress(e) {
-    if (e.key === 'Enter') sendMessage();
-}
-
 // Handle Image File Selection
 function handleImageSelect(e) {
     const file = e.target.files[0];
