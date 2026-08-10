@@ -14,11 +14,15 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
+/* Fix mobile viewport height & background scrolling */
+html,
 body {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    position: fixed;
     background-color: var(--bg-main);
     color: var(--text-primary);
-    height: 100vh;
-    overflow: hidden;
 }
 
 /* Splash Overlay */
@@ -43,10 +47,14 @@ body {
 .app-container {
     display: flex;
     flex-direction: column;
-    height: 100vh;
+    height: 100%;
+    height: -webkit-fill-available;
+    width: 100%;
+    overflow: hidden;
 }
 
 .app-header {
+    flex: 0 0 auto;
     height: 60px;
     background-color: var(--bg-card);
     display: flex;
@@ -135,9 +143,10 @@ body {
 
 /* Chat Main Layout */
 .main-content {
-    flex: 1;
+    flex: 1 1 auto;
     overflow-y: auto;
     padding: 16px;
+    -webkit-overflow-scrolling: touch;
 }
 
 .messages-area {
@@ -192,11 +201,13 @@ body {
     align-self: flex-end;
 }
 
-/* Input Bar */
+/* Mobile-Fixed Input Bar */
 .chat-input-container {
+    flex: 0 0 auto;
     background-color: var(--bg-card);
     border-top: 1px solid var(--border-color);
     padding: 8px 12px;
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
 }
 
 .image-preview-bar {
@@ -224,16 +235,21 @@ body {
     display: flex;
     align-items: center;
     gap: 8px;
+    width: 100%;
 }
 
 .chat-input-bar input[type="text"] {
     flex: 1;
+    min-width: 0;
+    /* Prevents overflow */
     background: var(--bg-main);
     border: 1px solid var(--border-color);
     border-radius: 20px;
     padding: 10px 16px;
     color: #fff;
     outline: none;
+    font-size: 16px;
+    /* Prevents iOS auto-zoom */
 }
 
 .attach-btn,
@@ -243,6 +259,7 @@ body {
     font-size: 1.2rem;
     color: #fff;
     cursor: pointer;
+    flex-shrink: 0;
 }
 
 /* Modals & Overlays */
@@ -291,6 +308,7 @@ body {
     border-radius: 8px;
     color: #fff;
     outline: none;
+    font-size: 16px;
 }
 
 .primary-btn {
@@ -376,6 +394,7 @@ body {
     border: 1px solid var(--border-color);
     border-radius: 8px;
     color: #fff;
+    font-size: 16px;
 }
 
 .feature-list {

@@ -24,6 +24,28 @@ if (document.readyState === 'loading') {
     setTimeout(hideSplashScreen, 500);
 }
 
+// Mobile Keyboard / Viewport adjustment listeners
+window.addEventListener('resize', () => {
+    const container = document.getElementById('messages-container');
+    if (container) {
+        container.scrollTop = container.scrollHeight;
+    }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    const chatInput = document.getElementById('chat-input');
+    if (chatInput) {
+        chatInput.addEventListener('focus', () => {
+            setTimeout(() => {
+                const container = document.getElementById('messages-container');
+                if (container) {
+                    container.scrollTop = container.scrollHeight;
+                }
+            }, 300);
+        });
+    }
+});
+
 // Re-join room on Socket Reconnection
 socket.on('connect', () => {
     if (currentUser && currentRoom && currentPassword) {
