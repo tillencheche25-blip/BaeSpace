@@ -1,6 +1,7 @@
 const socket = io();
 let currentUser = null;
 let currentRoom = null;
+let currentPassword = null;
 let selectedImageData = null;
 
 // Hide Splash Screen
@@ -14,13 +15,25 @@ window.addEventListener('DOMContentLoaded', () => {
     }, 1000);
 });
 
-// Join Room Handler
+// Auto Re-join room on Socket Reconnection (Fixes one-way messaging after connection drops)
+socket.on('connect', () => {
+    console.log('Connected to server with ID:', socket.id);
+    if (currentUser && currentRoom && currentPassword) {
+        socket.emit('join-room', {
+            email: currentUser,
+            password: currentPassword,
+            roomCode: currentRoom
+        });
+    }
+});
+
+// Handle Login / Join Form Submit
 function handleAuthSubmit(e) {
     e.preventDefault();
 
-    const email = document.getElementById('auth-email').value;
-    const password = document.getElementById('auth-password').value;
-    const roomCode = document.getElementById('auth-room-code').value;
+    const email = document.getElementById('auth-email').value.trim();
+    const password = document.getElementById('auth-password').value.trim();
+    const roomCode = document.getElementById('auth-room-code').value.trim().toLowerCase();
     const submitBtn = document.getElementById('auth-submit-btn');
 
     if (!email || !password || !roomCode) {
@@ -31,7 +44,6 @@ function handleAuthSubmit(e) {
     submitBtn.textContent = 'Verifying...';
     submitBtn.disabled = true;
 
-    // Send join request with callback
     socket.emit('join-room', { email, password, roomCode }, (response) => {
         submitBtn.disabled = false;
         submitBtn.textContent = 'Join Room';
@@ -39,12 +51,13 @@ function handleAuthSubmit(e) {
         if (response && response.success) {
             currentUser = email;
             currentRoom = response.roomCode;
+            currentPassword = password; // Saved locally to auto-rejoin if socket reconnects
 
             document.getElementById('auth-modal').style.display = 'none';
             document.getElementById('current-room-title').textContent = `Room: ${currentRoom}`;
-            document.getElementById('messages-container').innerHTML = ''; // Clear previous messages
+            document.getElementById('messages-container').innerHTML = ''; // Clear chat area for fresh room
         } else {
-            alert(response?.message || 'Access denied! Check your password.');
+            alert(response?.message || 'Access denied! Incorrect room password.');
         }
     });
 }
@@ -57,7 +70,7 @@ function handleKeyPress(e) {
     if (e.key === 'Enter') sendMessage();
 }
 
-// Handle Image File Selection
+// Handle Image Selection
 function handleImageSelect(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -140,7 +153,7 @@ function appendMessage(msg, direction) {
     }
 }
 
-// Socket Listeners
+// Socket Event Listeners
 socket.on('receive-message', (msg) => {
     appendMessage(msg, 'received');
 });

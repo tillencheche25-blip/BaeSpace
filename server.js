@@ -13,14 +13,13 @@ const io = new Server(server, {
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Simple file-backed database so passwords survive Render restarts
+// Persistent file-backed database for room passwords
 const DB_FILE = path.join(__dirname, 'rooms_db.json');
 
 function loadRooms() {
     try {
         if (fs.existsSync(DB_FILE)) {
-            const data = fs.readFileSync(DB_FILE, 'utf8');
-            return JSON.parse(data);
+            return JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
         }
     } catch (err) {
         console.error('Error reading rooms DB:', err);
@@ -41,53 +40,65 @@ const roomPasswords = loadRooms();
 io.on('connection', (socket) => {
     console.log('Client connected:', socket.id);
 
+    // Join Room Handler with strict normalization
     socket.on('join-room', (data, callback) => {
-        // Ensure callback exists to prevent crash
         const ack = typeof callback === 'function' ? callback : () => { };
-
         const { email, password, roomCode } = data || {};
 
         if (!roomCode || !password || !email) {
-            ack({ success: false, message: 'Please fill in all fields (Email, Password, Room Code).' });
-            return;
+            return ack({ success: false, message: 'Please fill in Email, Password, and Room Code.' });
         }
 
+        // Clean & normalize room code and password to prevent room mismatches
         const cleanRoom = roomCode.trim().toLowerCase();
         const cleanPass = password.trim();
 
-        // If room does NOT exist, set its password
+        // 1. Create room if it doesn't exist
         if (!roomPasswords[cleanRoom]) {
             roomPasswords[cleanRoom] = cleanPass;
             saveRooms(roomPasswords);
-            console.log(`Created new room "${cleanRoom}" with password.`);
+            console.log(`[DB] Created room "${cleanRoom}"`);
         }
-        // If room exists, verify password
+        // 2. Validate password if room exists
         else if (roomPasswords[cleanRoom] !== cleanPass) {
-            console.log(`Failed join attempt on room "${cleanRoom}": Incorrect password.`);
-            ack({ success: false, message: 'Incorrect password for this room!' });
-            return;
+            console.log(`[AUTH FAILED] Room "${cleanRoom}" wrong password.`);
+            return ack({ success: false, message: 'Incorrect room password!' });
         }
 
-        // Successfully authenticated
+        // Leave any previously joined room on this socket
+        if (socket.currentRoom) {
+            socket.leave(socket.currentRoom);
+        }
+
+        // Join the Socket.io room
         socket.join(cleanRoom);
         socket.currentRoom = cleanRoom;
         socket.currentUser = email;
-        console.log(`${email} joined room: ${cleanRoom}`);
 
+        console.log(`[JOIN SUCCESS] ${email} joined room: "${cleanRoom}"`);
+
+        // Notify room mates
         socket.to(cleanRoom).emit('user-joined', { email });
 
         ack({ success: true, roomCode: cleanRoom });
     });
 
+    // Send Message Handler
     socket.on('send-message', (msgData) => {
-        if (msgData && msgData.room) {
-            socket.to(msgData.room.trim().toLowerCase()).emit('receive-message', msgData);
-        }
+        if (!msgData || !msgData.room) return;
+
+        const targetRoom = msgData.room.trim().toLowerCase();
+
+        // Broadcast message to everyone ELSE in the room
+        socket.to(targetRoom).emit('receive-message', msgData);
+        console.log(`[MSG] Sent from ${msgData.sender} to room "${targetRoom}"`);
     });
 
+    // Read Receipts
     socket.on('mark-read', ({ msgId, room }) => {
         if (room) {
-            socket.to(room.trim().toLowerCase()).emit('message-read', { msgId });
+            const targetRoom = room.trim().toLowerCase();
+            socket.to(targetRoom).emit('message-read', { msgId });
         }
     });
 
