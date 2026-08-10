@@ -14,16 +14,17 @@ window.addEventListener('DOMContentLoaded', () => {
     }, 1000);
 });
 
-// Join Room Handler
+// Join Room Handler with Password
 function handleAuthSubmit(e) {
     e.preventDefault();
     const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
     const roomCode = document.getElementById('auth-room-code').value;
 
     currentUser = email;
     currentRoom = roomCode;
 
-    socket.emit('join-room', { email, roomCode });
+    socket.emit('join-room', { email, password, roomCode });
 
     document.getElementById('auth-modal').style.display = 'none';
     document.getElementById('current-room-title').textContent = `Room: ${roomCode}`;
@@ -78,18 +79,14 @@ function sendMessage() {
         read: false
     };
 
-    // Emit message to server
     socket.emit('send-message', msgData);
-
-    // Append locally to sender's UI
     appendMessage(msgData, 'sent');
 
-    // Reset inputs
     input.value = '';
     clearSelectedImage();
 }
 
-// Render Messages to DOM
+// Render Messages
 function appendMessage(msg, direction) {
     const container = document.getElementById('messages-container');
     const wrapper = document.createElement('div');
@@ -119,7 +116,6 @@ function appendMessage(msg, direction) {
     container.appendChild(wrapper);
     container.scrollTop = container.scrollHeight;
 
-    // Trigger read receipt back to sender if receiving
     if (direction === 'received') {
         socket.emit('mark-read', { msgId: msg.id, room: currentRoom });
     }

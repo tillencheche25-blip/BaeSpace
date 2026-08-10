@@ -6,34 +6,29 @@ const path = require('path');
 const app = express();
 const server = http.createServer(app);
 
-// Increase max buffer size to 10MB to handle image transfers safely
 const io = new Server(server, {
     maxHttpBufferSize: 1e7
 });
 
-// Serve static assets from public folder
 app.use(express.static(path.join(__dirname, 'public')));
 
 io.on('connection', (socket) => {
     console.log('Client connected:', socket.id);
 
-    // Join room logic
-    socket.on('join-room', ({ email, roomCode }) => {
+    // Accept password alongside email and room code
+    socket.on('join-room', ({ email, password, roomCode }) => {
         socket.join(roomCode);
         socket.currentRoom = roomCode;
         socket.currentUser = email;
-        console.log(`${email} joined room: ${roomCode}`);
+        console.log(`${email} joined room ${roomCode} with password`);
 
         socket.to(roomCode).emit('user-joined', { email });
     });
 
-    // Relay messages (text + image attachments)
     socket.on('send-message', (msgData) => {
-        // Broadcast to everyone in the room except the sender
         socket.to(msgData.room).emit('receive-message', msgData);
     });
 
-    // Relay read receipts
     socket.on('mark-read', ({ msgId, room }) => {
         socket.to(room).emit('message-read', { msgId });
     });
