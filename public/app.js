@@ -14,33 +14,49 @@ window.addEventListener('DOMContentLoaded', () => {
     }, 1000);
 });
 
-// Join Room Handler with Server Password Validation
+// Join Room Handler
 function handleAuthSubmit(e) {
     e.preventDefault();
+
     const email = document.getElementById('auth-email').value;
     const password = document.getElementById('auth-password').value;
     const roomCode = document.getElementById('auth-room-code').value;
-
     const submitBtn = document.getElementById('auth-submit-btn');
+
+    if (!email || !password || !roomCode) {
+        alert('Please complete all fields.');
+        return;
+    }
+
     submitBtn.textContent = 'Verifying...';
     submitBtn.disabled = true;
 
-    // Send credentials with acknowledgment callback
+    // Send join request with callback
     socket.emit('join-room', { email, password, roomCode }, (response) => {
         submitBtn.disabled = false;
         submitBtn.textContent = 'Join Room';
 
         if (response && response.success) {
             currentUser = email;
-            currentRoom = roomCode;
+            currentRoom = response.roomCode;
 
             document.getElementById('auth-modal').style.display = 'none';
-            document.getElementById('current-room-title').textContent = `Room: ${roomCode}`;
+            document.getElementById('current-room-title').textContent = `Room: ${currentRoom}`;
+            document.getElementById('messages-container').innerHTML = ''; // Clear previous messages
         } else {
-            alert(response.message || 'Access denied! Invalid password.');
+            alert(response?.message || 'Access denied! Check your password.');
         }
     });
 }
+
+function showAuthModal() {
+    document.getElementById('auth-modal').style.display = 'flex';
+}
+
+function handleKeyPress(e) {
+    if (e.key === 'Enter') sendMessage();
+}
+
 // Handle Image File Selection
 function handleImageSelect(e) {
     const file = e.target.files[0];

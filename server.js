@@ -2,59 +2,93 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
 
 const io = new Server(server, {
-    maxHttpBufferSize: 1e7 // 10MB limit for image attachments
+    maxHttpBufferSize: 1e7 // 10MB limit
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// In-memory store for room passwords: { roomCode: password }
-const roomPasswords = {};
+// Simple file-backed database so passwords survive Render restarts
+const DB_FILE = path.join(__dirname, 'rooms_db.json');
+
+function loadRooms() {
+    try {
+        if (fs.existsSync(DB_FILE)) {
+            const data = fs.readFileSync(DB_FILE, 'utf8');
+            return JSON.parse(data);
+        }
+    } catch (err) {
+        console.error('Error reading rooms DB:', err);
+    }
+    return {};
+}
+
+function saveRooms(rooms) {
+    try {
+        fs.writeFileSync(DB_FILE, JSON.stringify(rooms, null, 2));
+    } catch (err) {
+        console.error('Error saving rooms DB:', err);
+    }
+}
+
+const roomPasswords = loadRooms();
 
 io.on('connection', (socket) => {
     console.log('Client connected:', socket.id);
 
-    // Secure Join Room Handler
-    socket.on('join-room', ({ email, password, roomCode }, callback) => {
-        if (!roomCode || !password) {
-            if (callback) callback({ success: false, message: 'Room code and password are required.' });
+    socket.on('join-room', (data, callback) => {
+        // Ensure callback exists to prevent crash
+        const ack = typeof callback === 'function' ? callback : () => { };
+
+        const { email, password, roomCode } = data || {};
+
+        if (!roomCode || !password || !email) {
+            ack({ success: false, message: 'Please fill in all fields (Email, Password, Room Code).' });
             return;
         }
 
-        // If the room doesn't exist, create it and register the password
-        if (!roomPasswords[roomCode]) {
-            roomPasswords[roomCode] = password;
-            console.log(`Room ${roomCode} created with password.`);
+        const cleanRoom = roomCode.trim().toLowerCase();
+        const cleanPass = password.trim();
+
+        // If room does NOT exist, set its password
+        if (!roomPasswords[cleanRoom]) {
+            roomPasswords[cleanRoom] = cleanPass;
+            saveRooms(roomPasswords);
+            console.log(`Created new room "${cleanRoom}" with password.`);
         }
         // If room exists, verify password
-        else if (roomPasswords[roomCode] !== password) {
-            console.log(`Failed join attempt for room ${roomCode}: Incorrect password`);
-            if (callback) callback({ success: false, message: 'Incorrect password for this room!' });
+        else if (roomPasswords[cleanRoom] !== cleanPass) {
+            console.log(`Failed join attempt on room "${cleanRoom}": Incorrect password.`);
+            ack({ success: false, message: 'Incorrect password for this room!' });
             return;
         }
 
-        // Password verified - join room
-        socket.join(roomCode);
-        socket.currentRoom = roomCode;
+        // Successfully authenticated
+        socket.join(cleanRoom);
+        socket.currentRoom = cleanRoom;
         socket.currentUser = email;
-        console.log(`${email} successfully joined room: ${roomCode}`);
+        console.log(`${email} joined room: ${cleanRoom}`);
 
-        socket.to(roomCode).emit('user-joined', { email });
+        socket.to(cleanRoom).emit('user-joined', { email });
 
-        // Respond with success to client
-        if (callback) callback({ success: true });
+        ack({ success: true, roomCode: cleanRoom });
     });
 
     socket.on('send-message', (msgData) => {
-        socket.to(msgData.room).emit('receive-message', msgData);
+        if (msgData && msgData.room) {
+            socket.to(msgData.room.trim().toLowerCase()).emit('receive-message', msgData);
+        }
     });
 
     socket.on('mark-read', ({ msgId, room }) => {
-        socket.to(room).emit('message-read', { msgId });
+        if (room) {
+            socket.to(room.trim().toLowerCase()).emit('message-read', { msgId });
+        }
     });
 
     socket.on('disconnect', () => {
